@@ -52,7 +52,7 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
 
   return (
     <DropdownContext.Provider value={{ open, setOpen }}>
-      <div ref={menuRef} className="relative inline-block text-left">
+      <div ref={menuRef} className="relative z-50 inline-block text-left">
         {children}
       </div>
     </DropdownContext.Provider>
@@ -91,7 +91,7 @@ export function DropdownMenuContent({
   return (
     <div
       className={cn(
-        "absolute z-50 mt-2 min-w-[12rem] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/95 p-1.5 text-slate-800 dark:text-slate-200 shadow-2xl backdrop-blur-md animate-in fade-in-80 zoom-in-95",
+        "absolute z-[9999] mt-2 min-w-[12rem] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/95 p-1.5 text-slate-800 dark:text-slate-200 shadow-2xl backdrop-blur-md animate-in fade-in-80 zoom-in-95",
         alignStyles,
         className
       )}

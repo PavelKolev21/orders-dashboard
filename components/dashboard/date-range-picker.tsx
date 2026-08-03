@@ -84,7 +84,7 @@ export function DateRangePicker({
   }
 
   return (
-    <div className="relative z-30 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
+    <div className="relative z-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
       {/* Time Shortcuts & Calendar Picker Grouped Together */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center space-x-1.5 pr-1 text-xs font-semibold text-slate-500 dark:text-slate-400">

@@ -273,7 +273,7 @@ export default function DashboardPage() {
         ) : data ? (
           <>
             {/* Calendar & Preset Date Range Picker */}
-            <section className="relative z-30">
+            <section className="relative z-50">
               <DateRangePicker
                 startDate={startDate}
                 endDate={endDate}
