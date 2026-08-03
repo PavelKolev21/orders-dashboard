@@ -13,7 +13,7 @@ import { OrdersTable } from "@/components/dashboard/orders-table"
 import { AlertCircle, RefreshCw } from "lucide-react"
 
 export default function DashboardPage() {
-  const { user, loading: authLoading, isTokenFlow } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
   const [data, setData] = React.useState<OrdersApiResponse | null>(null)
@@ -31,10 +31,11 @@ export default function DashboardPage() {
 
   // Authentication check & redirect
   React.useEffect(() => {
-    if (!authLoading && !user && !isTokenFlow) {
+    if (!authLoading && !user) {
       router.replace("/login")
     }
-  }, [user, authLoading, isTokenFlow, router])
+  }, [user, authLoading, router])
+
 
 
 
@@ -189,14 +190,12 @@ export default function DashboardPage() {
     }
   }, [data, startDate, endDate])
 
-  if (authLoading || isTokenFlow) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
         <div className="flex flex-col items-center space-y-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-sm font-medium text-slate-400">
-            {isTokenFlow ? "Потвърждаване на профила в Netlify..." : "Проверка на сесията..."}
-          </p>
+          <p className="text-sm font-medium text-slate-400">Проверка на сесията...</p>
         </div>
       </div>
     )
