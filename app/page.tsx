@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { WooCommerceOrder, OrdersApiResponse } from "@/types/woocommerce"
 import { computeDashboardMetrics } from "@/lib/woocommerce"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
@@ -11,6 +13,9 @@ import { OrdersTable } from "@/components/dashboard/orders-table"
 import { AlertCircle, RefreshCw } from "lucide-react"
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
+
   const [data, setData] = React.useState<OrdersApiResponse | null>(null)
   const [loading, setLoading] = React.useState<boolean>(true)
   const [refreshing, setRefreshing] = React.useState<boolean>(false)
@@ -23,6 +28,14 @@ export default function DashboardPage() {
   const [datePreset, setDatePreset] = React.useState<DateRangePreset>("all")
   const [startDate, setStartDate] = React.useState<string>("")
   const [endDate, setEndDate] = React.useState<string>("")
+
+  // Authentication check & redirect
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login")
+    }
+  }, [user, authLoading, router])
+
 
   // Sync theme class on <html> element
   React.useEffect(() => {
@@ -174,6 +187,17 @@ export default function DashboardPage() {
       filteredMetrics: computeDashboardMetrics(currentOrders, prevOrders),
     }
   }, [data, startDate, endDate])
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+          <p className="text-sm font-medium text-slate-400">Проверка на сесията...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-indigo-500/20 selection:text-indigo-500">
