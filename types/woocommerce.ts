@@ -37,6 +37,7 @@ export interface WooCommerceLineItem {
   total_tax?: string;
   sku?: string;
   price: number;
+  meta_data?: { id: number; key: string; value: any }[];
 }
 
 export interface WooCommerceOrder {
