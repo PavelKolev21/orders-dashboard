@@ -2,7 +2,7 @@ import { WooCommerceOrder, WooCommerceLineItem } from "@/types/woocommerce"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { Package, Tag, Percent, Sparkles, TrendingDown, BookOpen, Zap } from "lucide-react"
+import { Package, Tag, Sparkles, TrendingDown, BookOpen, Zap } from "lucide-react"
 
 interface OrderLineItemsSubTableProps {
   order: WooCommerceOrder
@@ -23,16 +23,20 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
   const orderTax = parseFloat(order.total_tax || "0") || lineItems.reduce((s, i) => s + (parseFloat(i.total_tax || "0") || 0), 0)
   const netTotal = Math.max(0, orderTotalWithVat - orderTax)
 
-  // Calculate item-level discounts
-  const itemDiscounts = lineItems.reduce((sum, item) => {
+  // Calculate total savings: difference between regular_price & unit price + item discounts + order coupon discount
+  const totalSavings = lineItems.reduce((sum, item) => {
+    const unitP = parseFloat(item.price as any) || 0
+    const regP = item.regular_price ? parseFloat(String(item.regular_price)) : 0
     const sub = parseFloat(item.subtotal) || 0
     const tot = parseFloat(item.total) || 0
-    return sum + Math.max(0, sub - tot)
-  }, 0)
+    const lineDiff = Math.max(0, sub - tot)
+    const qty = item.quantity || 1
 
-  // Order-level discount
-  const orderDiscount = parseFloat(order.discount_total || "0") || 0
-  const totalSavings = itemDiscounts + orderDiscount
+    if (regP > unitP) {
+      return sum + (regP - unitP) * qty
+    }
+    return sum + lineDiff
+  }, 0) + (parseFloat(order.discount_total || "0") || 0)
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/80 p-4 shadow-inner space-y-3">
@@ -59,32 +63,53 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
           </TableHeader>
           <TableBody>
             {lineItems.map((item) => {
+              const unitPrice = parseFloat(item.price as any) || 0
+              const regularPrice = item.regular_price ? parseFloat(String(item.regular_price)) : 0
+              const salePrice = item.sale_price ? parseFloat(String(item.sale_price)) : 0
               const subtotal = parseFloat(item.subtotal) || 0
               const total = parseFloat(item.total) || 0
               const itemDiscount = Math.max(0, subtotal - total)
-              const hasDiscount = itemDiscount > 0
-              const discountPercent = subtotal > 0 && hasDiscount ? Math.round((itemDiscount / subtotal) * 100) : 0
 
+              // Check if product is on sale (sale price set, regular price > unit price, on_sale === true, or item discount)
+              const isOnSale =
+                item.on_sale === true ||
+                (regularPrice > 0 && regularPrice > unitPrice) ||
+                (regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
+                itemDiscount > 0
+
+              const unitDiscount = regularPrice > unitPrice ? regularPrice - unitPrice : itemDiscount / (item.quantity || 1)
+              const discountPercent =
+                regularPrice > 0 && regularPrice > unitPrice
+                  ? Math.round(((regularPrice - unitPrice) / regularPrice) * 100)
+                  : subtotal > 0 && itemDiscount > 0
+                  ? Math.round((itemDiscount / subtotal) * 100)
+                  : 0
+
+              // Tags inspection (Product tags from WooCommerce API)
+              const tagsArr = Array.isArray(item.tags) ? item.tags : []
+              const tagLowerArr = tagsArr.map((t) => String(t).toLowerCase())
               const nameLower = (item.name || "").toLowerCase()
               const skuLower = (item.sku || "").toLowerCase()
               const metaValues = (item.meta_data || []).map((m: any) => String(m.value || "").toLowerCase()).join(" ")
 
-              // Tag / Campaign Detection
               const isBrochure =
+                tagLowerArr.some((t) => t.includes("брошура") || t.includes("brochure")) ||
                 nameLower.includes("брошура") ||
                 nameLower.includes("brochure") ||
                 skuLower.includes("brochure") ||
-                metaValues.includes("брошура") ||
-                metaValues.includes("brochure")
+                metaValues.includes("брошура")
 
               const isLimitedOffer =
+                tagLowerArr.some((t) => t.includes("лимитиран") || t.includes("limited") || t.includes("оферта")) ||
                 nameLower.includes("лимитиран") ||
                 nameLower.includes("limited") ||
                 skuLower.includes("limited") ||
-                metaValues.includes("лимитиран") ||
-                metaValues.includes("limited") ||
-                metaValues.includes("промоция") ||
-                metaValues.includes("promo")
+                metaValues.includes("лимитиран")
+
+              // Other custom product tags (excluding brochure/limited already highlighted)
+              const otherTags = tagsArr.filter(
+                (t) => !t.toLowerCase().includes("брошура") && !t.toLowerCase().includes("лимитиран")
+              )
 
               return (
                 <TableRow key={item.id} className="border-b border-slate-200/80 dark:border-slate-800/40 hover:bg-slate-100/60 dark:hover:bg-slate-900/40">
@@ -92,15 +117,15 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span>{item.name}</span>
                       
-                      {/* Reduced Sale Price Marker */}
-                      {hasDiscount && (
+                      {/* 1. Reduced Sale Price Marker */}
+                      {isOnSale && (
                         <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                           <TrendingDown className="h-3 w-3 text-rose-500" />
                           Намалена цена {discountPercent > 0 ? `(-${discountPercent}%)` : ""}
                         </Badge>
                       )}
 
-                      {/* "Брошура" Tag Marker */}
+                      {/* 2. "Брошура" Tag Marker */}
                       {isBrochure && (
                         <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                           <BookOpen className="h-3 w-3 text-amber-500" />
@@ -108,18 +133,32 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                         </Badge>
                       )}
 
-                      {/* "Лимитирани предложения" Tag Marker */}
+                      {/* 3. "Лимитирани предложения" Tag Marker */}
                       {isLimitedOffer && (
                         <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30">
                           <Zap className="h-3 w-3 text-purple-500" />
                           Лимитирани предложения
                         </Badge>
                       )}
+
+                      {/* Other product tags */}
+                      {otherTags.slice(0, 2).map((tag, idx) => (
+                        <Badge key={idx} variant="outline" className="text-[9px] px-1.5 py-0 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700">
+                          <Tag className="h-2.5 w-2.5 mr-0.5 text-slate-400" />
+                          {tag}
+                        </Badge>
+                      ))}
                     </div>
 
-                    {hasDiscount && (
-                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
-                        Спестени {formatCurrency(itemDiscount)} от редовната цена
+                    {/* Show Regular Price vs Unit Sale Price detail if on sale */}
+                    {isOnSale && regularPrice > unitPrice && (
+                      <div className="text-[11px] text-rose-600 dark:text-rose-400 font-mono mt-0.5 flex items-center gap-1.5">
+                        <span className="line-through text-slate-400 font-normal">{formatCurrency(regularPrice)}</span>
+                        <span>➔</span>
+                        <span className="font-semibold">{formatCurrency(unitPrice)}</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans">
+                          (спестени {formatCurrency(unitDiscount * (item.quantity || 1))})
+                        </span>
                       </div>
                     )}
                   </TableCell>
@@ -131,7 +170,14 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                     {item.quantity}
                   </TableCell>
                   <TableCell className="py-2.5 text-xs text-slate-600 dark:text-slate-300 text-right font-mono">
-                    {formatCurrency(item.price)}
+                    {regularPrice > unitPrice ? (
+                      <div>
+                        <span className="line-through text-slate-400 text-[10px] block">{formatCurrency(regularPrice)}</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-bold">{formatCurrency(unitPrice)}</span>
+                      </div>
+                    ) : (
+                      formatCurrency(unitPrice)
+                    )}
                   </TableCell>
                   <TableCell className="py-2.5 text-xs text-slate-500 dark:text-slate-400 text-right font-mono">
                     {formatCurrency(item.total_tax || 0)}

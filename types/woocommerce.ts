@@ -38,6 +38,10 @@ export interface WooCommerceLineItem {
   sku?: string;
   price: number;
   meta_data?: { id: number; key: string; value: any }[];
+  regular_price?: number | string;
+  sale_price?: number | string;
+  on_sale?: boolean;
+  tags?: string[];
 }
 
 export interface WooCommerceOrder {

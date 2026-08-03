@@ -54,22 +54,18 @@ export function computeDashboardMetrics(
     }
   }
 
-  // Process chronologically
   const sortedOrders = [...orders].sort((a, b) => {
     const tA = a.date_created ? new Date(a.date_created).getTime() : 0
     const tB = b.date_created ? new Date(b.date_created).getTime() : 0
     return tA - tB
   })
 
-  // Check unique calendar dates present in orders
   const uniqueDates = Array.from(new Set(sortedOrders.map((o) => getDateKey(o.date_created))))
-
   const isSingleDay = uniqueDates.length <= 1
 
   let revenueTrends: { date: string; formattedDate: string; revenue: number; orders: number }[] = []
 
   if (isSingleDay) {
-    // 24-Hour Breakdown for 1-day view
     const mapHourRevenue: Record<number, { revenue: number; orders: number }> = {}
     for (let h = 0; h < 24; h++) {
       mapHourRevenue[h] = { revenue: 0, orders: 0 }
@@ -97,7 +93,6 @@ export function computeDashboardMetrics(
       }
     })
   } else {
-    // Daily Breakdown for multi-day views
     const mapDateRevenue: Record<string, { revenue: number; orders: number }> = {}
 
     sortedOrders.forEach((order) => {
@@ -240,6 +235,50 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
       })
     }
 
+    // Batch fetch WooCommerce Product details (regular_price, sale_price, on_sale, tags) for all line items
+    const productIds = new Set<number>()
+    rawOrders.forEach((o: any) => {
+      ;(o.line_items || []).forEach((li: any) => {
+        if (li.product_id) productIds.add(li.product_id)
+      })
+    })
+
+    const productMap = new Map<
+      number,
+      { regular_price?: string; sale_price?: string; on_sale?: boolean; tags?: string[] }
+    >()
+
+    if (productIds.size > 0) {
+      const idsArr = Array.from(productIds)
+      for (let i = 0; i < idsArr.length; i += 100) {
+        const chunk = idsArr.slice(i, i + 100)
+        try {
+          const pRes = await fetch(`${cleanUrl}/wp-json/wc/v3/products?include=${chunk.join(",")}&per_page=100`, {
+            method: "GET",
+            headers: {
+              Authorization: authHeader,
+              "Content-Type": "application/json",
+            },
+            signal: AbortSignal.timeout(10000),
+            next: { revalidate: 300 },
+          })
+          if (pRes.ok) {
+            const pList: any[] = await pRes.json()
+            pList.forEach((p: any) => {
+              productMap.set(p.id, {
+                regular_price: p.regular_price,
+                sale_price: p.sale_price,
+                on_sale: p.on_sale,
+                tags: Array.isArray(p.tags) ? p.tags.map((t: any) => t.name) : [],
+              })
+            })
+          }
+        } catch (pErr) {
+          console.log("[WooCommerce API] Product details fetch skipped/timed out:", pErr)
+        }
+      }
+    }
+
     const liveOrders: WooCommerceOrder[] = rawOrders.map((order: any) => {
       const meta = order.meta_data || []
       const getMeta = (key: string) => meta.find((m: any) => m.key === key)?.value
@@ -285,9 +324,22 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
         sourceLabel = `Източник: ${utmSource}`
       }
 
+      // Enrich line items with product regular_price, sale_price, on_sale, and tags
+      const enrichedLineItems = (order.line_items || []).map((li: any) => {
+        const pInfo = productMap.get(li.product_id) || {}
+        return {
+          ...li,
+          regular_price: pInfo.regular_price || li.regular_price,
+          sale_price: pInfo.sale_price || li.sale_price,
+          on_sale: typeof pInfo.on_sale === "boolean" ? pInfo.on_sale : li.on_sale,
+          tags: pInfo.tags && pInfo.tags.length > 0 ? pInfo.tags : li.tags || [],
+        }
+      })
+
       return {
         ...order,
         total: String(order.total || "0"),
+        line_items: enrichedLineItems,
         tracking_type: trackingTypeVal,
         source: sourceLabel,
         points: typeof pointsVal === "number" ? pointsVal : parseInt(String(pointsVal)) || 0,
