@@ -94,10 +94,11 @@ export default function DashboardPage() {
     fetchOrders()
   }, [fetchOrders])
 
-  // Handle Preset Changes (L7D, L14D, L30D, All)
+  // Handle Preset Changes (Today, Yesterday, This Week, L7D, L14D, This Month, L30D, Last Month, All)
   const handlePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset)
-    const today = new Date()
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
     
     if (preset === "all") {
       setStartDate("")
@@ -106,15 +107,49 @@ export default function DashboardPage() {
       return
     }
 
-    let daysToSubtract = 7
-    if (preset === "l14d") daysToSubtract = 14
-    else if (preset === "l30d") daysToSubtract = 30
+    let sStr = todayStr
+    let eStr = todayStr
 
-    const start = new Date(today)
-    start.setDate(today.getDate() - daysToSubtract)
-
-    const sStr = start.toISOString().slice(0, 10)
-    const eStr = today.toISOString().slice(0, 10)
+    if (preset === "today") {
+      sStr = todayStr
+      eStr = todayStr
+    } else if (preset === "yesterday") {
+      const y = new Date(now)
+      y.setDate(now.getDate() - 1)
+      sStr = y.toISOString().slice(0, 10)
+      eStr = sStr
+    } else if (preset === "this_week") {
+      const dayOfWeek = now.getDay()
+      const distanceToMon = (dayOfWeek + 6) % 7
+      const monday = new Date(now)
+      monday.setDate(now.getDate() - distanceToMon)
+      sStr = monday.toISOString().slice(0, 10)
+      eStr = todayStr
+    } else if (preset === "l7d") {
+      const d = new Date(now)
+      d.setDate(now.getDate() - 7)
+      sStr = d.toISOString().slice(0, 10)
+      eStr = todayStr
+    } else if (preset === "l14d") {
+      const d = new Date(now)
+      d.setDate(now.getDate() - 14)
+      sStr = d.toISOString().slice(0, 10)
+      eStr = todayStr
+    } else if (preset === "this_month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+      sStr = firstDay.toISOString().slice(0, 10)
+      eStr = todayStr
+    } else if (preset === "l30d") {
+      const d = new Date(now)
+      d.setDate(now.getDate() - 30)
+      sStr = d.toISOString().slice(0, 10)
+      eStr = todayStr
+    } else if (preset === "last_month") {
+      const firstDayPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0)
+      sStr = firstDayPrev.toISOString().slice(0, 10)
+      eStr = lastDayPrev.toISOString().slice(0, 10)
+    }
 
     setStartDate(sStr)
     setEndDate(eStr)
@@ -280,7 +315,11 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <OrdersTable data={filteredOrders} />
+              <OrdersTable
+                data={filteredOrders}
+                onRefresh={() => fetchOrders(true, startDate, endDate)}
+                isRefreshing={refreshing}
+              />
             </section>
           </>
         ) : null}

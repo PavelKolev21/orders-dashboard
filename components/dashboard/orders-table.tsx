@@ -25,10 +25,12 @@ import {
   PackageCheck,
   Truck,
   Globe,
+  RefreshCw,
+  Clock,
 } from "lucide-react"
 
 import { WooCommerceOrder } from "@/types/woocommerce"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -52,11 +54,13 @@ import { OrderLineItemsSubTable } from "./order-line-items-subtable"
 
 interface OrdersTableProps {
   data: WooCommerceOrder[]
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
 const STORAGE_KEY = "wc_dashboard_column_visibility_v3"
 
-export function OrdersTable({ data }: OrdersTableProps) {
+export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   
@@ -255,11 +259,17 @@ export function OrdersTable({ data }: OrdersTableProps) {
             </div>
           )
         },
-        cell: ({ row }) => (
-          <span className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-            {formatDate(row.original.date_created)}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const dateStr = row.original.date_created
+          const relative = formatRelativeDate(dateStr)
+          const exact = formatDate(dateStr)
+          return (
+            <div className="flex items-center space-x-1.5 whitespace-nowrap text-xs text-slate-700 dark:text-slate-300" title={`Точна дата: ${exact}`}>
+              <Clock className="h-3.5 w-3.5 text-indigo-500/80 shrink-0" />
+              <span className="font-medium">{relative}</span>
+            </div>
+          )
+        },
       },
       {
         accessorKey: "status",
@@ -808,6 +818,25 @@ export function OrdersTable({ data }: OrdersTableProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Secondary / Local Table Refresh Data Button */}
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="h-9 text-xs font-semibold border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+              title="Обнови данните за поръчките в избрания период"
+            >
+              <RefreshCw
+                className={`mr-1.5 h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400 ${
+                  isRefreshing ? "animate-spin" : ""
+                }`}
+              />
+              Обнови поръчките
+            </Button>
+          )}
+
           {/* Column Toggle Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger>
@@ -898,7 +927,7 @@ export function OrdersTable({ data }: OrdersTableProps) {
                   {row.getIsExpanded() && (
                     <TableRow className="bg-slate-50 dark:bg-slate-950/90 hover:bg-slate-50 dark:hover:bg-slate-950/90 border-b border-slate-200 dark:border-slate-800/80">
                       <TableCell colSpan={row.getVisibleCells().length} className="p-4 bg-slate-50/70 dark:bg-slate-950/60">
-                        <OrderLineItemsSubTable lineItems={row.original.line_items} />
+                        <OrderLineItemsSubTable order={row.original} />
                       </TableCell>
                     </TableRow>
                   )}

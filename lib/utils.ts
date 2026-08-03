@@ -35,3 +35,35 @@ export function formatDate(dateString: string): string {
     return dateString
   }
 }
+
+export function formatRelativeDate(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return dateString
+
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+
+    if (diffMs < 0) return formatDate(dateString)
+
+    const diffMin = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMin < 1) {
+      return "Преди малко"
+    } else if (diffMin < 60) {
+      return `Преди ${diffMin} ${diffMin === 1 ? "минута" : "минути"}`
+    } else if (diffHours < 24) {
+      return `Преди ${diffHours} ${diffHours === 1 ? "час" : "часа"}`
+    } else if (diffDays === 1) {
+      return `Вчера`
+    } else if (diffDays < 3) {
+      return `Преди ${diffDays} дни`
+    } else {
+      return formatDate(dateString)
+    }
+  } catch {
+    return dateString
+  }
+}

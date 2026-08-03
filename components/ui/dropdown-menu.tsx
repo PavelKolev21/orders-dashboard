@@ -101,9 +101,9 @@ export function DropdownMenuContent({
   )
 }
 
-export function DropdownMenuLabel({ children }: { children: React.ReactNode }) {
+export function DropdownMenuLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+    <div className={cn("px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400", className)}>
       {children}
     </div>
   )
@@ -148,6 +148,32 @@ export function DropdownMenuCheckboxItem({
         )}
       </span>
       <span>{children}</span>
+    </div>
+  )
+}
+
+export function DropdownMenuItem({
+  children,
+  onClick,
+  className,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  className?: string
+}) {
+  const { setOpen } = React.useContext(DropdownContext)
+  return (
+    <div
+      onClick={() => {
+        if (onClick) onClick()
+        setOpen(false)
+      }}
+      className={cn(
+        "relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-xs font-medium outline-none transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white",
+        className
+      )}
+    >
+      {children}
     </div>
   )
 }
