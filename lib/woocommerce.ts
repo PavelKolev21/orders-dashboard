@@ -191,7 +191,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(15000),
       next: { revalidate: 60 },
     })
 
@@ -224,7 +224,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
               Authorization: authHeader,
               "Content-Type": "application/json",
             },
-            signal: AbortSignal.timeout(2500),
+            signal: AbortSignal.timeout(15000),
             next: { revalidate: 60 },
           })
             .then((r) => (r.ok ? r.json() : []))
@@ -307,7 +307,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
       ...metrics,
     }
   } catch (error) {
-    console.log("[WooCommerce API] Fast fallback to mock data:", error instanceof Error ? error.message : String(error))
+    console.log("[WooCommerce API] Fallback to mock data:", error instanceof Error ? error.message : String(error))
     const metrics = computeDashboardMetrics(MOCK_ORDERS)
     return {
       success: true,
