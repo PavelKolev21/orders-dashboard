@@ -24,10 +24,24 @@ export default function DashboardPage() {
   // Default main theme is LIGHT (white mode)
   const [theme, setTheme] = React.useState<"dark" | "light">("light")
 
-  // Date Range Filtering state
-  const [datePreset, setDatePreset] = React.useState<DateRangePreset>("all")
-  const [startDate, setStartDate] = React.useState<string>("")
-  const [endDate, setEndDate] = React.useState<string>("")
+  // Helper for YYYY-MM-DD in local time
+  const initialMonthDates = React.useMemo(() => {
+    const now = new Date()
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, "0")
+    const d = String(now.getDate()).padStart(2, "0")
+    const fD = String(firstDay.getDate()).padStart(2, "0")
+    return {
+      start: `${y}-${m}-${fD}`,
+      end: `${y}-${m}-${d}`,
+    }
+  }, [])
+
+  // Date Range Filtering state (Default: "this_month")
+  const [datePreset, setDatePreset] = React.useState<DateRangePreset>("this_month")
+  const [startDate, setStartDate] = React.useState<string>(initialMonthDates.start)
+  const [endDate, setEndDate] = React.useState<string>(initialMonthDates.end)
 
   // Authentication check & redirect
   React.useEffect(() => {
@@ -89,10 +103,10 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Initial fetch on mount
+  // Initial fetch on mount (Default to "This Month")
   React.useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    fetchOrders(false, initialMonthDates.start, initialMonthDates.end)
+  }, [fetchOrders, initialMonthDates])
 
   // Handle Preset Changes (Today, Yesterday, This Week, L7D, L14D, This Month, L30D, Last Month, All)
   const handlePresetChange = (preset: DateRangePreset) => {
