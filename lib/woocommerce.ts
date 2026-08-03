@@ -43,39 +43,78 @@ export function computeDashboardMetrics(
     }
   }
 
-  // Group by day for Recharts daily revenue trends
-  const mapDateRevenue: Record<string, { revenue: number; orders: number }> = {}
-
   // Process chronologically
   const sortedOrders = [...orders].sort(
     (a, b) => new Date(a.date_created).getTime() - new Date(b.date_created).getTime()
   )
 
-  sortedOrders.forEach((order) => {
-    const dateKey = order.date_created.split("T")[0] || order.date_created.substring(0, 10)
-    const amount = parseFloat(order.total.replace(",", ".")) || 0
+  // Check unique calendar dates present in orders
+  const uniqueDates = Array.from(
+    new Set(sortedOrders.map((o) => o.date_created.split("T")[0] || o.date_created.substring(0, 10)))
+  )
 
-    if (!mapDateRevenue[dateKey]) {
-      mapDateRevenue[dateKey] = { revenue: 0, orders: 0 }
-    }
-    if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
-      mapDateRevenue[dateKey].revenue += amount
-    }
-    mapDateRevenue[dateKey].orders += 1
-  })
+  const isSingleDay = uniqueDates.length <= 1
 
-  const revenueTrends = Object.entries(mapDateRevenue).map(([date, data]) => {
-    const d = new Date(date)
-    const formattedDate = isNaN(d.getTime())
-      ? date
-      : d.toLocaleDateString("en-GB", { month: "short", day: "numeric" })
-    return {
-      date,
-      formattedDate,
-      revenue: parseFloat(data.revenue.toFixed(2)),
-      orders: data.orders,
+  let revenueTrends: { date: string; formattedDate: string; revenue: number; orders: number }[] = []
+
+  if (isSingleDay) {
+    // 24-Hour Breakdown for 1-day view
+    const mapHourRevenue: Record<number, { revenue: number; orders: number }> = {}
+    for (let h = 0; h < 24; h++) {
+      mapHourRevenue[h] = { revenue: 0, orders: 0 }
     }
-  })
+
+    sortedOrders.forEach((order) => {
+      const d = new Date(order.date_created)
+      const hour = isNaN(d.getTime()) ? 0 : d.getHours()
+      const amount = parseFloat(order.total.replace(",", ".")) || 0
+
+      if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
+        mapHourRevenue[hour].revenue += amount
+      }
+      mapHourRevenue[hour].orders += 1
+    })
+
+    revenueTrends = Object.entries(mapHourRevenue).map(([hStr, data]) => {
+      const h = parseInt(hStr, 10)
+      const formattedHour = `${String(h).padStart(2, "0")}:00`
+      return {
+        date: formattedHour,
+        formattedDate: formattedHour,
+        revenue: parseFloat(data.revenue.toFixed(2)),
+        orders: data.orders,
+      }
+    })
+  } else {
+    // Daily Breakdown for multi-day views
+    const mapDateRevenue: Record<string, { revenue: number; orders: number }> = {}
+
+    sortedOrders.forEach((order) => {
+      const dateKey = order.date_created.split("T")[0] || order.date_created.substring(0, 10)
+      const amount = parseFloat(order.total.replace(",", ".")) || 0
+
+      if (!mapDateRevenue[dateKey]) {
+        mapDateRevenue[dateKey] = { revenue: 0, orders: 0 }
+      }
+      if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
+        mapDateRevenue[dateKey].revenue += amount
+      }
+      mapDateRevenue[dateKey].orders += 1
+    })
+
+    revenueTrends = Object.entries(mapDateRevenue).map(([date, data]) => {
+      const d = new Date(date)
+      const formattedDate = isNaN(d.getTime())
+        ? date
+        : d.toLocaleDateString("en-GB", { month: "short", day: "numeric" })
+      return {
+        date,
+        formattedDate,
+        revenue: parseFloat(data.revenue.toFixed(2)),
+        orders: data.orders,
+      }
+    })
+  }
 
   return {
     kpis: {

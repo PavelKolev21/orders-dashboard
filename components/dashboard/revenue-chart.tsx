@@ -29,15 +29,20 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
   const gridColor = isDark ? "#1e293b" : "#e2e8f0"
   const textColor = isDark ? "#64748b" : "#64748b"
 
+  // Detect if chart data represents hourly breakdown (e.g. "00:00", "01:00", etc.)
+  const isHourly = data.length > 0 && data[0].formattedDate.includes(":")
+
   return (
     <Card className="bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800/90 shadow-md dark:shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
           <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Daily Revenue Trends
+            {isHourly ? "Часови график на продажбите (Hourly Revenue Trends)" : "Дневен график на продажбите (Daily Revenue Trends)"}
           </CardTitle>
           <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
-            Daily sales breakdown from WooCommerce orders
+            {isHourly
+              ? "Разпределение по часове (00:00 - 23:00) за избрания ден"
+              : "Дневен преглед на приходите от WooCommerce поръчки"}
           </CardDescription>
         </div>
         <div className="flex items-center space-x-2">
@@ -65,6 +70,7 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
+                interval={isHourly ? 1 : "preserveEnd"}
               />
               <YAxis
                 stroke={textColor}
@@ -76,15 +82,17 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
               <Tooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload as RevenueTrend
+                    const item = payload[0].payload as RevenueTrend
                     return (
                       <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/95 p-3 shadow-xl backdrop-blur-md">
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{data.formattedDate}</p>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {isHourly ? `Час: ${item.formattedDate}` : `Дата: ${item.formattedDate}`}
+                        </p>
                         <p className="mt-1 text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                          {formatCurrency(data.revenue)}
+                          {formatCurrency(item.revenue)}
                         </p>
                         <p className="text-xs text-slate-700 dark:text-slate-300">
-                          {data.orders} {data.orders === 1 ? "order" : "orders"}
+                          {item.orders} {item.orders === 1 ? "поръчка" : "поръчки"}
                         </p>
                       </div>
                     )
