@@ -2,7 +2,7 @@ import { WooCommerceOrder, WooCommerceLineItem } from "@/types/woocommerce"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { Package, Tag, Sparkles, TrendingDown, BookOpen, Zap } from "lucide-react"
+import { Package, Sparkles, TrendingDown, BookOpen, Zap } from "lucide-react"
 
 interface OrderLineItemsSubTableProps {
   order: WooCommerceOrder
@@ -70,14 +70,13 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
               const total = parseFloat(item.total) || 0
               const itemDiscount = Math.max(0, subtotal - total)
 
-              // Check if product is on sale (sale price set, regular price > unit price, on_sale === true, or item discount)
+              // Check if product is on sale
               const isOnSale =
                 item.on_sale === true ||
                 (regularPrice > 0 && regularPrice > unitPrice) ||
                 (regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
                 itemDiscount > 0
 
-              const unitDiscount = regularPrice > unitPrice ? regularPrice - unitPrice : itemDiscount / (item.quantity || 1)
               const discountPercent =
                 regularPrice > 0 && regularPrice > unitPrice
                   ? Math.round(((regularPrice - unitPrice) / regularPrice) * 100)
@@ -106,22 +105,17 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                 skuLower.includes("limited") ||
                 metaValues.includes("лимитиран")
 
-              // Other custom product tags (excluding brochure/limited already highlighted)
-              const otherTags = tagsArr.filter(
-                (t) => !t.toLowerCase().includes("брошура") && !t.toLowerCase().includes("лимитиран")
-              )
-
               return (
                 <TableRow key={item.id} className="border-b border-slate-200/80 dark:border-slate-800/40 hover:bg-slate-100/60 dark:hover:bg-slate-900/40">
                   <TableCell className="py-2.5 text-xs font-medium text-slate-800 dark:text-slate-200">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span>{item.name}</span>
                       
-                      {/* 1. Reduced Sale Price Marker */}
+                      {/* 1. Compact Sale Price Badge (-XX%) */}
                       {isOnSale && (
-                        <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                        <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                           <TrendingDown className="h-3 w-3 text-rose-500" />
-                          Намалена цена {discountPercent > 0 ? `(-${discountPercent}%)` : ""}
+                          <span>{discountPercent > 0 ? `-${discountPercent}%` : "Промо"}</span>
                         </Badge>
                       )}
 
@@ -140,27 +134,7 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                           Лимитирани предложения
                         </Badge>
                       )}
-
-                      {/* Other product tags */}
-                      {otherTags.slice(0, 2).map((tag, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[9px] px-1.5 py-0 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700">
-                          <Tag className="h-2.5 w-2.5 mr-0.5 text-slate-400" />
-                          {tag}
-                        </Badge>
-                      ))}
                     </div>
-
-                    {/* Show Regular Price vs Unit Sale Price detail if on sale */}
-                    {isOnSale && regularPrice > unitPrice && (
-                      <div className="text-[11px] text-rose-600 dark:text-rose-400 font-mono mt-0.5 flex items-center gap-1.5">
-                        <span className="line-through text-slate-400 font-normal">{formatCurrency(regularPrice)}</span>
-                        <span>➔</span>
-                        <span className="font-semibold">{formatCurrency(unitPrice)}</span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans">
-                          (спестени {formatCurrency(unitDiscount * (item.quantity || 1))})
-                        </span>
-                      </div>
-                    )}
                   </TableCell>
 
                   <TableCell className="py-2.5 text-xs font-mono text-slate-500 dark:text-slate-400">
