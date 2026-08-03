@@ -245,8 +245,6 @@ export default function DashboardPage() {
       {/* Top Header Navigation */}
       <DashboardHeader
         isMockData={data ? data.isMockData : true}
-        onRefresh={() => fetchOrders(true, startDate, endDate)}
-        isRefreshing={refreshing}
         theme={theme}
         onToggleTheme={toggleTheme}
       />

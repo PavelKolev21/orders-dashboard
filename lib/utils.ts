@@ -48,19 +48,16 @@ export function formatRelativeDate(dateString: string): string {
 
     const diffMin = Math.floor(diffMs / (1000 * 60))
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
+    // Maximum 4 hours threshold for relative time display
     if (diffMin < 1) {
       return "Преди малко"
     } else if (diffMin < 60) {
       return `Преди ${diffMin} ${diffMin === 1 ? "минута" : "минути"}`
-    } else if (diffHours < 24) {
+    } else if (diffHours < 4) {
       return `Преди ${diffHours} ${diffHours === 1 ? "час" : "часа"}`
-    } else if (diffDays === 1) {
-      return `Вчера`
-    } else if (diffDays < 3) {
-      return `Преди ${diffDays} дни`
     } else {
+      // After 4 hours, show exact date & time
       return formatDate(dateString)
     }
   } catch {

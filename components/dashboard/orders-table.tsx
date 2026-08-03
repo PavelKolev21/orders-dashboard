@@ -46,6 +46,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -866,28 +867,44 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Dual Export Buttons */}
-          <Button
-            onClick={handleExportOrdersSummary}
-            variant="outline"
-            size="sm"
-            className="h-9 text-xs font-semibold border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10"
-            title="Експорт на избраните/филтрираните поръчки като обобщение"
-          >
-            <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-500" />
-            Export Orders (Summary)
-          </Button>
-
-          <Button
-            onClick={handleExportOrdersByProducts}
-            variant="default"
-            size="sm"
-            className="h-9 text-xs font-semibold"
-            title="Експорт на избраните/филтрираните поръчки разбити по продукти"
-          >
-            <PackageCheck className="mr-1.5 h-3.5 w-3.5" />
-            Export Orders by Products
-          </Button>
+          {/* Export Options Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs font-semibold border-indigo-300 dark:border-indigo-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-indigo-500" />
+                <span>Експорт</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Избор на формат за експорт</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleExportOrdersSummary}
+                className="cursor-pointer text-xs py-2 flex items-center gap-2"
+              >
+                <Download className="h-4 w-4 text-indigo-500 shrink-0" />
+                <div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">Експорт поръчки (Обобщено)</div>
+                  <div className="text-[11px] text-slate-400">CSV с данни за клиента, статус и суми</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleExportOrdersByProducts}
+                className="cursor-pointer text-xs py-2 flex items-center gap-2"
+              >
+                <PackageCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                <div>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">Експорт по продукти</div>
+                  <div className="text-[11px] text-slate-400">CSV с детайли за всеки продукт & SKU</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
