@@ -84,10 +84,10 @@ export function DateRangePicker({
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
-      {/* Quick Access Shortcut Buttons */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400">
+    <div className="relative z-30 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
+      {/* Time Shortcuts & Calendar Picker Grouped Together */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center space-x-1.5 pr-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <Zap className="h-3.5 w-3.5 text-amber-500" />
           <span className="hidden sm:inline">Бързи:</span>
         </div>
@@ -118,10 +118,10 @@ export function DateRangePicker({
         >
           Тази седмица
         </Button>
-      </div>
 
-      {/* Single Expandable Date Range Picker Button with Dash Format */}
-      <div className="flex items-center gap-2">
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+
+        {/* Single Expandable Date Range Picker Button */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

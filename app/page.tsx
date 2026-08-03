@@ -273,7 +273,7 @@ export default function DashboardPage() {
         ) : data ? (
           <>
             {/* Calendar & Preset Date Range Picker */}
-            <section>
+            <section className="relative z-30">
               <DateRangePicker
                 startDate={startDate}
                 endDate={endDate}
@@ -285,7 +285,7 @@ export default function DashboardPage() {
             </section>
 
             {/* Top-Level Analytics: KPI Cards with Dynamic Comparisons */}
-            <section className="space-y-3">
+            <section className="relative z-10 space-y-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Основни метрики (Key Performance Indicators)
               </h2>
