@@ -2,7 +2,7 @@ import { WooCommerceOrder, WooCommerceLineItem } from "@/types/woocommerce"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { Package, Sparkles, TrendingDown, BookOpen, Zap } from "lucide-react"
+import { Package, TrendingDown, BookOpen, Zap } from "lucide-react"
 
 interface OrderLineItemsSubTableProps {
   order: WooCommerceOrder
@@ -78,10 +78,7 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
               const regularPrice = item.regular_price ? parseFloat(String(item.regular_price)) : 0
               const salePrice = item.sale_price ? parseFloat(String(item.sale_price)) : 0
 
-              // Product is truly on sale ONLY if:
-              // 1) WooCommerce product has on_sale === true AND regular_price > sale_price
-              // 2) OR salePrice > 0 and regularPrice > salePrice
-              // 3) OR itemDiscount > 0
+              // Product is truly on sale ONLY if regular_price > sale_price or itemDiscount > 0
               const isRealSale =
                 (regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
                 (item.on_sale === true && regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
@@ -121,7 +118,7 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span>{item.name}</span>
                       
-                      {/* 1. Compact Sale Price Badge (-XX%) ONLY when product is actually on sale */}
+                      {/* 1. Compact Sale Price Badge (-XX%) */}
                       {isRealSale && discountPercent > 0 && (
                         <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                           <TrendingDown className="h-3 w-3 text-rose-500" />
@@ -176,27 +173,13 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
         </Table>
       </div>
 
-      {/* Footer Totals & Discount Summary (Below Table) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        {/* Total Discount Callout Badge */}
-        {totalSavings > 0 ? (
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-semibold shadow-sm text-xs font-mono">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Сумарна отстъпка:</span>
-            <strong className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-              -{formatCurrency(totalSavings)}
-            </strong>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        {/* Totals Breakdown */}
-        <div className="flex items-center space-x-3 text-xs text-slate-600 dark:text-slate-400 font-mono bg-white/80 dark:bg-slate-900/80 px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+      {/* Footer Totals Summary (Below Table) */}
+      <div className="flex justify-end pt-1">
+        <div className="flex flex-wrap items-center space-x-3 text-xs text-slate-600 dark:text-slate-400 font-mono bg-white/80 dark:bg-slate-900/80 px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
           <span>Без ДДС: <strong className="text-slate-800 dark:text-slate-200">{formatCurrency(netTotal)}</strong></span>
           <span>ДДС: <strong className="text-slate-800 dark:text-slate-200">{formatCurrency(orderTax)}</strong></span>
           {totalSavings > 0 && (
-            <span className="pl-2 border-l border-slate-300 dark:border-slate-700 text-emerald-600 dark:text-emerald-400">
+            <span className="pl-2 border-l border-slate-300 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-semibold">
               Отстъпка: <strong>-{formatCurrency(totalSavings)}</strong>
             </span>
           )}
