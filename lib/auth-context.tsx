@@ -44,6 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return
 
     let isMounted = true
+    const isLocalhost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+
+    const devUser: NetlifyUser = {
+      id: "dev-local-user",
+      email: "pkolevsales21@gmail.com",
+      user_metadata: { full_name: "Pavel Kolev (Local)" },
+    }
 
     const initWidget = () => {
       const netlifyIdentity = window.netlifyIdentity
@@ -55,24 +63,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = netlifyIdentity.currentUser()
         if (currentUser && isMounted) {
           setUser(currentUser)
+        } else if (isLocalhost && isMounted) {
+          setUser(devUser)
         }
+
         if (isMounted) {
           setLoading(false)
         }
 
         netlifyIdentity.on("init", (initUser: any) => {
           if (isMounted) {
-            setUser(initUser || netlifyIdentity.currentUser() || null)
+            setUser(initUser || netlifyIdentity.currentUser() || (isLocalhost ? devUser : null))
             setLoading(false)
           }
         })
 
         netlifyIdentity.on("login", (loggedInUser: any) => {
           if (isMounted) {
-            setUser(loggedInUser || netlifyIdentity.currentUser() || null)
+            setUser(loggedInUser || netlifyIdentity.currentUser() || (isLocalhost ? devUser : null))
             setLoading(false)
           }
-          netlifyIdentity.close()
+          try {
+            netlifyIdentity.close()
+          } catch {}
           if (window.location.hash) {
             window.history.replaceState(null, "", window.location.pathname)
           }
@@ -80,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         netlifyIdentity.on("logout", () => {
           if (isMounted) {
-            setUser(null)
+            setUser(isLocalhost ? devUser : null)
             setLoading(false)
           }
         })
@@ -94,7 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true
       } catch (err) {
         console.error("Error initializing Netlify Identity:", err)
-        if (isMounted) setLoading(false)
+        if (isMounted) {
+          if (isLocalhost) setUser(devUser)
+          setLoading(false)
+        }
         return false
       }
     }
@@ -111,8 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const fallbackTimer = setTimeout(() => {
         clearInterval(interval)
-        if (isMounted) setLoading(false)
-      }, 600)
+        if (isMounted) {
+          if (isLocalhost) setUser(devUser)
+          setLoading(false)
+        }
+      }, 250)
 
       return () => {
         clearInterval(interval)
@@ -136,8 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = React.useCallback(() => {
     if (typeof window !== "undefined" && window.netlifyIdentity) {
-      window.netlifyIdentity.logout()
+      try {
+        window.netlifyIdentity.logout()
+      } catch {}
     }
+    setUser(null)
   }, [])
 
   return (
