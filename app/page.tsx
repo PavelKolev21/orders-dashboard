@@ -237,7 +237,14 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+          <p className="text-sm font-medium text-slate-400">Зареждане на таблото...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

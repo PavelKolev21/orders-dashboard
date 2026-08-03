@@ -31,14 +31,27 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
-  loading: true,
+  loading: false,
   openLoginModal: () => {},
   logout: () => {},
 })
 
+const DEV_USER: NetlifyUser = {
+  id: "dev-local-user",
+  email: "pkolevsales21@gmail.com",
+  user_metadata: { full_name: "Pavel Kolev (Local)" },
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = React.useState<NetlifyUser | null>(null)
-  const [loading, setLoading] = React.useState<boolean>(true)
+  const [user, setUser] = React.useState<NetlifyUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const isLocal =
+        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      if (isLocal) return DEV_USER
+    }
+    return null
+  })
+  const [loading, setLoading] = React.useState<boolean>(false)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -46,12 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true
     const isLocalhost =
       window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-
-    const devUser: NetlifyUser = {
-      id: "dev-local-user",
-      email: "pkolevsales21@gmail.com",
-      user_metadata: { full_name: "Pavel Kolev (Local)" },
-    }
 
     const initWidget = () => {
       const netlifyIdentity = window.netlifyIdentity
@@ -64,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser && isMounted) {
           setUser(currentUser)
         } else if (isLocalhost && isMounted) {
-          setUser(devUser)
+          setUser(DEV_USER)
         }
 
         if (isMounted) {
@@ -73,14 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         netlifyIdentity.on("init", (initUser: any) => {
           if (isMounted) {
-            setUser(initUser || netlifyIdentity.currentUser() || (isLocalhost ? devUser : null))
+            setUser(initUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
             setLoading(false)
           }
         })
 
         netlifyIdentity.on("login", (loggedInUser: any) => {
           if (isMounted) {
-            setUser(loggedInUser || netlifyIdentity.currentUser() || (isLocalhost ? devUser : null))
+            setUser(loggedInUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
             setLoading(false)
           }
           try {
@@ -93,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         netlifyIdentity.on("logout", () => {
           if (isMounted) {
-            setUser(isLocalhost ? devUser : null)
+            setUser(isLocalhost ? DEV_USER : null)
             setLoading(false)
           }
         })
@@ -108,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error("Error initializing Netlify Identity:", err)
         if (isMounted) {
-          if (isLocalhost) setUser(devUser)
+          if (isLocalhost) setUser(DEV_USER)
           setLoading(false)
         }
         return false
@@ -128,10 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const fallbackTimer = setTimeout(() => {
         clearInterval(interval)
         if (isMounted) {
-          if (isLocalhost) setUser(devUser)
+          if (isLocalhost && !user) setUser(DEV_USER)
           setLoading(false)
         }
-      }, 250)
+      }, 200)
 
       return () => {
         clearInterval(interval)
@@ -143,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [user])
 
   const openLoginModal = React.useCallback((tab: "login" | "signup" = "login") => {
     if (typeof window !== "undefined" && window.netlifyIdentity) {
