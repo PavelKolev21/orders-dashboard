@@ -8,6 +8,7 @@ export type { NetlifyUser }
 interface AuthContextType {
   user: NetlifyUser | null
   loading: boolean
+  isTokenFlow: boolean
   openLoginModal: (tab?: "login" | "signup") => void
   logout: () => void
 }
@@ -15,6 +16,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
   loading: true,
+  isTokenFlow: false,
   openLoginModal: () => {},
   logout: () => {},
 })
@@ -22,10 +24,23 @@ const AuthContext = React.createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<NetlifyUser | null>(null)
   const [loading, setLoading] = React.useState<boolean>(true)
+  const [isTokenFlow, setIsTokenFlow] = React.useState<boolean>(false)
   const netlifyIdentityRef = React.useRef<any>(null)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
+
+    // Check if URL contains invitation/confirmation/recovery tokens
+    const hash = window.location.hash || ""
+    const hasAuthToken =
+      hash.includes("invite_token") ||
+      hash.includes("recovery_token") ||
+      hash.includes("confirmation_token") ||
+      hash.includes("access_token")
+
+    if (hasAuthToken) {
+      setIsTokenFlow(true)
+    }
 
     // Dynamically import netlify-identity-widget only in browser environment
     import("netlify-identity-widget").then((widgetModule) => {
@@ -37,34 +52,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         APIUrl: siteUrl ? `${siteUrl.replace(/\/$/, "")}/.netlify/functions/identity` : undefined,
       })
 
-
+      // Get current user if already authenticated
       const currentUser = netlifyIdentity.currentUser()
       if (currentUser) {
         setUser(currentUser)
+        setLoading(false)
+        setIsTokenFlow(false)
       }
-      setLoading(false)
 
       const handleInit = (initUser?: NetlifyUser | null) => {
-        setUser(initUser || null)
-        setLoading(false)
+        if (initUser) {
+          setUser(initUser)
+          setLoading(false)
+          setIsTokenFlow(false)
+        } else {
+          const curr = netlifyIdentity.currentUser()
+          if (curr) {
+            setUser(curr)
+            setLoading(false)
+            setIsTokenFlow(false)
+          } else {
+            setUser(null)
+            // If handling an invite/recovery token, keep loading until user submits password modal
+            if (!hasAuthToken) {
+              setLoading(false)
+            }
+          }
+        }
       }
 
       const handleLogin = (loggedInUser?: NetlifyUser) => {
-        if (loggedInUser) {
-          setUser(loggedInUser)
+        const validUser = loggedInUser || netlifyIdentity.currentUser()
+        if (validUser) {
+          setUser(validUser)
         }
         setLoading(false)
+        setIsTokenFlow(false)
         netlifyIdentity.close()
+
+        // Clean up hash token from URL
+        if (typeof window !== "undefined" && window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname)
+        }
       }
 
       const handleLogout = () => {
         setUser(null)
         setLoading(false)
+        setIsTokenFlow(false)
       }
 
       netlifyIdentity.on("init", handleInit as any)
       netlifyIdentity.on("login", handleLogin as any)
       netlifyIdentity.on("logout", handleLogout)
+      netlifyIdentity.on("close", () => {
+        // If user closes modal during token flow without logging in, finish loading so redirect can happen
+        setLoading(false)
+        setIsTokenFlow(false)
+      })
     })
   }, [])
 
@@ -87,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, openLoginModal, logout }}>
+    <AuthContext.Provider value={{ user, loading, isTokenFlow, openLoginModal, logout }}>
       {children}
     </AuthContext.Provider>
   )
