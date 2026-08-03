@@ -1,9 +1,26 @@
 "use client"
 
 import * as React from "react"
-import type { User as NetlifyUser } from "netlify-identity-widget"
 
-export type { NetlifyUser }
+declare global {
+  interface Window {
+    netlifyIdentity?: any
+  }
+}
+
+export interface NetlifyUser {
+  id: string
+  email: string
+  created_at?: string
+  app_metadata?: {
+    provider?: string
+    roles?: string[]
+  }
+  user_metadata?: {
+    full_name?: string
+    avatar_url?: string
+  }
+}
 
 interface AuthContextType {
   user: NetlifyUser | null
@@ -22,96 +39,104 @@ const AuthContext = React.createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<NetlifyUser | null>(null)
   const [loading, setLoading] = React.useState<boolean>(true)
-  const netlifyIdentityRef = React.useRef<any>(null)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
 
     let isMounted = true
 
-    // Safety fallback timer: ensure loading never gets stuck on true for more than 1.2s
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) {
-        setLoading(false)
+    const initWidget = () => {
+      const netlifyIdentity = window.netlifyIdentity
+      if (!netlifyIdentity) return false
+
+      try {
+        netlifyIdentity.init()
+
+        const currentUser = netlifyIdentity.currentUser()
+        if (currentUser && isMounted) {
+          setUser(currentUser)
+        }
+        if (isMounted) {
+          setLoading(false)
+        }
+
+        netlifyIdentity.on("init", (initUser: any) => {
+          if (isMounted) {
+            setUser(initUser || netlifyIdentity.currentUser() || null)
+            setLoading(false)
+          }
+        })
+
+        netlifyIdentity.on("login", (loggedInUser: any) => {
+          if (isMounted) {
+            setUser(loggedInUser || netlifyIdentity.currentUser() || null)
+            setLoading(false)
+          }
+          netlifyIdentity.close()
+          if (window.location.hash) {
+            window.history.replaceState(null, "", window.location.pathname)
+          }
+        })
+
+        netlifyIdentity.on("logout", () => {
+          if (isMounted) {
+            setUser(null)
+            setLoading(false)
+          }
+        })
+
+        netlifyIdentity.on("close", () => {
+          if (isMounted) {
+            setLoading(false)
+          }
+        })
+
+        return true
+      } catch (err) {
+        console.error("Error initializing Netlify Identity:", err)
+        if (isMounted) setLoading(false)
+        return false
       }
-    }, 1200)
+    }
 
-    import("netlify-identity-widget").then((widgetModule) => {
-      if (!isMounted) return
-      const netlifyIdentity = widgetModule.default || widgetModule
-      netlifyIdentityRef.current = netlifyIdentity
-
-      const updateUserState = (u?: NetlifyUser | null) => {
-        const currentUser = u || netlifyIdentity.currentUser()
-        if (isMounted) {
-          setUser(currentUser || null)
-          setLoading(false)
+    if (window.netlifyIdentity) {
+      initWidget()
+    } else {
+      const interval = setInterval(() => {
+        if (window.netlifyIdentity) {
+          clearInterval(interval)
+          initWidget()
         }
+      }, 50)
+
+      const fallbackTimer = setTimeout(() => {
+        clearInterval(interval)
+        if (isMounted) setLoading(false)
+      }, 600)
+
+      return () => {
+        clearInterval(interval)
+        clearTimeout(fallbackTimer)
+        isMounted = false
       }
-
-      // Attach event listeners BEFORE calling init()
-      netlifyIdentity.on("init", (initUser?: NetlifyUser | null) => {
-        updateUserState(initUser)
-      })
-
-      netlifyIdentity.on("login", (loggedInUser?: NetlifyUser) => {
-        updateUserState(loggedInUser)
-        netlifyIdentity.close()
-        if (typeof window !== "undefined" && window.location.hash) {
-          window.history.replaceState(null, "", window.location.pathname)
-        }
-      })
-
-      netlifyIdentity.on("logout", () => {
-        if (isMounted) {
-          setUser(null)
-          setLoading(false)
-        }
-      })
-
-      netlifyIdentity.on("close", () => {
-        if (isMounted) {
-          setLoading(false)
-        }
-      })
-
-      netlifyIdentity.on("error", () => {
-        if (isMounted) {
-          setLoading(false)
-        }
-      })
-
-      // Initialize Netlify Identity widget
-      const siteUrl = process.env.NEXT_PUBLIC_NETLIFY_SITE_URL
-      netlifyIdentity.init({
-        APIUrl: siteUrl ? `${siteUrl.replace(/\/$/, "")}/.netlify/functions/identity` : undefined,
-      })
-
-      // Check current user immediately
-      updateUserState()
-    })
+    }
 
     return () => {
       isMounted = false
-      clearTimeout(safetyTimer)
     }
   }, [])
 
   const openLoginModal = React.useCallback((tab: "login" | "signup" = "login") => {
-    if (netlifyIdentityRef.current) {
-      netlifyIdentityRef.current.open(tab)
-    } else if (typeof window !== "undefined") {
-      import("netlify-identity-widget").then((widgetModule) => {
-        const netlifyIdentity = widgetModule.default || widgetModule
-        netlifyIdentityRef.current = netlifyIdentity
-        netlifyIdentity.open(tab)
-      })
+    if (typeof window !== "undefined" && window.netlifyIdentity) {
+      window.netlifyIdentity.open(tab)
+    } else {
+      alert("Netlify Identity зарежда... Моля опитайте отново след секунда.")
     }
   }, [])
 
   const logout = React.useCallback(() => {
-    if (netlifyIdentityRef.current) {
-      netlifyIdentityRef.current.logout()
+    if (typeof window !== "undefined" && window.netlifyIdentity) {
+      window.netlifyIdentity.logout()
     }
   }, [])
 
