@@ -23,19 +23,21 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
   const orderTax = parseFloat(order.total_tax || "0") || lineItems.reduce((s, i) => s + (parseFloat(i.total_tax || "0") || 0), 0)
   const netTotal = Math.max(0, orderTotalWithVat - orderTax)
 
-  // Calculate total savings: difference between regular_price & unit price + item discounts + order coupon discount
+  // Calculate total savings: sum of real sale discounts + order coupon discounts
   const totalSavings = lineItems.reduce((sum, item) => {
-    const unitP = parseFloat(item.price as any) || 0
+    const qty = item.quantity || 1
     const regP = item.regular_price ? parseFloat(String(item.regular_price)) : 0
+    const saleP = item.sale_price ? parseFloat(String(item.sale_price)) : 0
     const sub = parseFloat(item.subtotal) || 0
     const tot = parseFloat(item.total) || 0
-    const lineDiff = Math.max(0, sub - tot)
-    const qty = item.quantity || 1
+    const itemDiscount = Math.max(0, sub - tot)
 
-    if (regP > unitP) {
-      return sum + (regP - unitP) * qty
+    if (regP > 0 && saleP > 0 && regP > saleP) {
+      return sum + (regP - saleP) * qty
+    } else if (itemDiscount > 0) {
+      return sum + itemDiscount
     }
-    return sum + lineDiff
+    return sum
   }, 0) + (parseFloat(order.discount_total || "0") || 0)
 
   return (
@@ -63,26 +65,34 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
           </TableHeader>
           <TableBody>
             {lineItems.map((item) => {
-              const unitPrice = parseFloat(item.price as any) || 0
+              const qty = item.quantity || 1
+              const netSubtotal = parseFloat(item.subtotal) || 0
+              const netTotalItem = parseFloat(item.total) || 0
+              const itemTax = parseFloat(item.total_tax || "0") || 0
+              const itemDiscount = Math.max(0, netSubtotal - netTotalItem)
+
+              // Gross Unit Price (with 20% VAT)
+              const grossUnitPrice = (netTotalItem + itemTax) / qty
+
+              // Product API pricing attributes
               const regularPrice = item.regular_price ? parseFloat(String(item.regular_price)) : 0
               const salePrice = item.sale_price ? parseFloat(String(item.sale_price)) : 0
-              const subtotal = parseFloat(item.subtotal) || 0
-              const total = parseFloat(item.total) || 0
-              const itemDiscount = Math.max(0, subtotal - total)
 
-              // Check if product is on sale
-              const isOnSale =
-                item.on_sale === true ||
-                (regularPrice > 0 && regularPrice > unitPrice) ||
+              // Product is truly on sale ONLY if:
+              // 1) WooCommerce product has on_sale === true AND regular_price > sale_price
+              // 2) OR salePrice > 0 and regularPrice > salePrice
+              // 3) OR itemDiscount > 0
+              const isRealSale =
                 (regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
+                (item.on_sale === true && regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) ||
                 itemDiscount > 0
 
-              const discountPercent =
-                regularPrice > 0 && regularPrice > unitPrice
-                  ? Math.round(((regularPrice - unitPrice) / regularPrice) * 100)
-                  : subtotal > 0 && itemDiscount > 0
-                  ? Math.round((itemDiscount / subtotal) * 100)
-                  : 0
+              let discountPercent = 0
+              if (regularPrice > 0 && salePrice > 0 && regularPrice > salePrice) {
+                discountPercent = Math.round(((regularPrice - salePrice) / regularPrice) * 100)
+              } else if (netSubtotal > 0 && itemDiscount > 0) {
+                discountPercent = Math.round((itemDiscount / netSubtotal) * 100)
+              }
 
               // Tags inspection (Product tags from WooCommerce API)
               const tagsArr = Array.isArray(item.tags) ? item.tags : []
@@ -111,11 +121,11 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span>{item.name}</span>
                       
-                      {/* 1. Compact Sale Price Badge (-XX%) */}
-                      {isOnSale && (
+                      {/* 1. Compact Sale Price Badge (-XX%) ONLY when product is actually on sale */}
+                      {isRealSale && discountPercent > 0 && (
                         <Badge className="text-[10px] px-1.5 py-0.5 font-semibold flex items-center gap-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                           <TrendingDown className="h-3 w-3 text-rose-500" />
-                          <span>{discountPercent > 0 ? `-${discountPercent}%` : "Промо"}</span>
+                          <span>-{discountPercent}%</span>
                         </Badge>
                       )}
 
@@ -144,13 +154,13 @@ export function OrderLineItemsSubTable({ order }: OrderLineItemsSubTableProps) {
                     {item.quantity}
                   </TableCell>
                   <TableCell className="py-2.5 text-xs text-slate-600 dark:text-slate-300 text-right font-mono">
-                    {regularPrice > unitPrice ? (
+                    {isRealSale && regularPrice > 0 && salePrice > 0 && regularPrice > salePrice ? (
                       <div>
                         <span className="line-through text-slate-400 text-[10px] block">{formatCurrency(regularPrice)}</span>
-                        <span className="text-rose-600 dark:text-rose-400 font-bold">{formatCurrency(unitPrice)}</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-bold">{formatCurrency(salePrice)}</span>
                       </div>
                     ) : (
-                      formatCurrency(unitPrice)
+                      formatCurrency(grossUnitPrice)
                     )}
                   </TableCell>
                   <TableCell className="py-2.5 text-xs text-slate-500 dark:text-slate-400 text-right font-mono">
