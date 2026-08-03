@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server"
-import { getWooCommerceOrders } from "@/lib/woocommerce"
+import { getWooCommerceOrders, computeDashboardMetrics } from "@/lib/woocommerce"
+import { MOCK_ORDERS } from "@/lib/mock-data"
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,12 +12,15 @@ export async function GET(request: NextRequest) {
     const result = await getWooCommerceOrders({ after, before, perPage })
     return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Internal Server Error",
-      },
-      { status: 500 }
-    )
+    console.error("API /api/orders route catch fallback:", error)
+    const metrics = computeDashboardMetrics(MOCK_ORDERS)
+    return NextResponse.json({
+      success: true,
+      data: MOCK_ORDERS,
+      isMockData: true,
+      totalCount: MOCK_ORDERS.length,
+      error: error instanceof Error ? error.message : "Internal API error, using mock data",
+      ...metrics,
+    })
   }
 }

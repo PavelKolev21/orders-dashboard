@@ -1,17 +1,29 @@
 import { MOCK_ORDERS } from "@/lib/mock-data"
 import { WooCommerceOrder, OrdersApiResponse } from "@/types/woocommerce"
 
+function parseTotal(total: any): number {
+  if (!total) return 0
+  const str = String(total).replace(",", ".")
+  const val = parseFloat(str)
+  return isNaN(val) ? 0 : val
+}
+
+function getDateKey(dateCreated: any): string {
+  if (!dateCreated) return "2026-08-03"
+  const str = String(dateCreated)
+  return str.split("T")[0] || str.substring(0, 10) || "2026-08-03"
+}
+
 export function computeDashboardMetrics(
   orders: WooCommerceOrder[],
   prevPeriodOrders?: WooCommerceOrder[]
 ) {
   const validOrders = orders.filter(
-    (o) => o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
+    (o) => o && o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
   )
 
   const totalRevenue = validOrders.reduce((sum, order) => {
-    const val = parseFloat(order.total.replace(",", "."))
-    return sum + (isNaN(val) ? 0 : val)
+    return sum + parseTotal(order.total)
   }, 0)
 
   const totalOrders = orders.length
@@ -23,11 +35,10 @@ export function computeDashboardMetrics(
 
   if (prevPeriodOrders && prevPeriodOrders.length > 0) {
     const validPrev = prevPeriodOrders.filter(
-      (o) => o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
+      (o) => o && o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
     )
     const prevRevenue = validPrev.reduce((sum, order) => {
-      const val = parseFloat(order.total.replace(",", "."))
-      return sum + (isNaN(val) ? 0 : val)
+      return sum + parseTotal(order.total)
     }, 0)
     const prevOrders = prevPeriodOrders.length
     const prevAOV = validPrev.length > 0 ? prevRevenue / validPrev.length : 0
@@ -44,14 +55,14 @@ export function computeDashboardMetrics(
   }
 
   // Process chronologically
-  const sortedOrders = [...orders].sort(
-    (a, b) => new Date(a.date_created).getTime() - new Date(b.date_created).getTime()
-  )
+  const sortedOrders = [...orders].sort((a, b) => {
+    const tA = a.date_created ? new Date(a.date_created).getTime() : 0
+    const tB = b.date_created ? new Date(b.date_created).getTime() : 0
+    return tA - tB
+  })
 
   // Check unique calendar dates present in orders
-  const uniqueDates = Array.from(
-    new Set(sortedOrders.map((o) => o.date_created.split("T")[0] || o.date_created.substring(0, 10)))
-  )
+  const uniqueDates = Array.from(new Set(sortedOrders.map((o) => getDateKey(o.date_created))))
 
   const isSingleDay = uniqueDates.length <= 1
 
@@ -65,9 +76,9 @@ export function computeDashboardMetrics(
     }
 
     sortedOrders.forEach((order) => {
-      const d = new Date(order.date_created)
+      const d = order.date_created ? new Date(order.date_created) : new Date()
       const hour = isNaN(d.getTime()) ? 0 : d.getHours()
-      const amount = parseFloat(order.total.replace(",", ".")) || 0
+      const amount = parseTotal(order.total)
 
       if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
         mapHourRevenue[hour].revenue += amount
@@ -90,8 +101,8 @@ export function computeDashboardMetrics(
     const mapDateRevenue: Record<string, { revenue: number; orders: number }> = {}
 
     sortedOrders.forEach((order) => {
-      const dateKey = order.date_created.split("T")[0] || order.date_created.substring(0, 10)
-      const amount = parseFloat(order.total.replace(",", ".")) || 0
+      const dateKey = getDateKey(order.date_created)
+      const amount = parseTotal(order.total)
 
       if (!mapDateRevenue[dateKey]) {
         mapDateRevenue[dateKey] = { revenue: 0, orders: 0 }
@@ -166,7 +177,6 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
     let rawOrders: any[] = []
     const perPageVal = options.perPage || 100
 
-    // Fetch page 1 first to get total pages header
     let page1Url = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=1`
     if (options.after) {
       page1Url += `&after=${encodeURIComponent(options.after)}`
@@ -193,7 +203,6 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
     const page1Data: any[] = await res1.json()
     rawOrders = [...page1Data]
 
-    // Fetch remaining pages in parallel (up to 50 pages / 5,000 orders max for high speed)
     const maxPagesToFetch = Math.min(totalPages, 50)
 
     if (maxPagesToFetch > 1) {
@@ -238,7 +247,6 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
       const trackingTypeVal = getMeta("_tracking_type") || order.shipping_lines?.[0]?.method_title || "Tag or API"
       const exportStatusVal = getMeta("_export_status") || "Tag or API"
 
-      // Order Source Extraction (WooCommerce Order Attribution & PixelYourSite)
       const utmSource = getMeta("_wc_order_attribution_utm_source") || getMeta("_utm_source") || getMeta("utm_source")
       const sourceType = getMeta("_wc_order_attribution_source_type")
       const referrer = getMeta("_wc_order_attribution_referrer")
@@ -277,6 +285,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
 
       return {
         ...order,
+        total: String(order.total || "0"),
         tracking_type: trackingTypeVal,
         source: sourceLabel,
         points: typeof pointsVal === "number" ? pointsVal : parseInt(String(pointsVal)) || 0,
