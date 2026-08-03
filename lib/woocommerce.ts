@@ -191,12 +191,12 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(2500),
       next: { revalidate: 60 },
     })
 
     if (!res1.ok) {
-      throw new Error(`WooCommerce API Error: ${res1.status} ${res1.statusText}`)
+      throw new Error(`WooCommerce API Status: ${res1.status}`)
     }
 
     const totalPagesHeader = res1.headers.get("x-wp-totalpages")
@@ -224,7 +224,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
               Authorization: authHeader,
               "Content-Type": "application/json",
             },
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(2500),
             next: { revalidate: 60 },
           })
             .then((r) => (r.ok ? r.json() : []))
@@ -307,14 +307,13 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
       ...metrics,
     }
   } catch (error) {
-    console.warn("Live WooCommerce API unavailable or timed out, using fallback mock data:", error instanceof Error ? error.message : error)
+    console.log("[WooCommerce API] Fast fallback to mock data:", error instanceof Error ? error.message : String(error))
     const metrics = computeDashboardMetrics(MOCK_ORDERS)
     return {
       success: true,
       data: MOCK_ORDERS,
       isMockData: true,
       totalCount: MOCK_ORDERS.length,
-      error: error instanceof Error ? error.message : "Failed to fetch live orders",
       ...metrics,
     }
   }
