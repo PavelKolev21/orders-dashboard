@@ -191,6 +191,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
         Authorization: authHeader,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(6000),
       next: { revalidate: 60 },
     })
 
@@ -223,6 +224,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
               Authorization: authHeader,
               "Content-Type": "application/json",
             },
+            signal: AbortSignal.timeout(6000),
             next: { revalidate: 60 },
           })
             .then((r) => (r.ok ? r.json() : []))
@@ -305,7 +307,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
       ...metrics,
     }
   } catch (error) {
-    console.error("Failed to fetch live WooCommerce orders, falling back to mock data:", error)
+    console.warn("Live WooCommerce API unavailable or timed out, using fallback mock data:", error instanceof Error ? error.message : error)
     const metrics = computeDashboardMetrics(MOCK_ORDERS)
     return {
       success: true,
