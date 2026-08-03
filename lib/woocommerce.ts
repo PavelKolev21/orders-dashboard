@@ -124,48 +124,71 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
     const cleanUrl = storeUrl.replace(/\/$/, "")
     const authHeader = `Basic ${Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64")}`
 
-    let page = 1
-    let totalPages = 1
     let rawOrders: any[] = []
     const perPageVal = options.perPage || 100
 
-    // Fetch pages loop up to max 10 pages (1000 orders max for performance)
-    do {
-      let endpoint = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=${page}`
-      if (options.after) {
-        endpoint += `&after=${encodeURIComponent(options.after)}`
-      }
-      if (options.before) {
-        endpoint += `&before=${encodeURIComponent(options.before)}`
+    // Fetch page 1 first to get total pages header
+    let page1Url = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=1`
+    if (options.after) {
+      page1Url += `&after=${encodeURIComponent(options.after)}`
+    }
+    if (options.before) {
+      page1Url += `&before=${encodeURIComponent(options.before)}`
+    }
+
+    const res1 = await fetch(page1Url, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      next: { revalidate: 60 },
+    })
+
+    if (!res1.ok) {
+      throw new Error(`WooCommerce API Error: ${res1.status} ${res1.statusText}`)
+    }
+
+    const totalPagesHeader = res1.headers.get("x-wp-totalpages")
+    const totalPages = totalPagesHeader ? parseInt(totalPagesHeader, 10) : 1
+    const page1Data: any[] = await res1.json()
+    rawOrders = [...page1Data]
+
+    // Fetch remaining pages in parallel (up to 50 pages / 5,000 orders max for high speed)
+    const maxPagesToFetch = Math.min(totalPages, 50)
+
+    if (maxPagesToFetch > 1) {
+      const pagePromises = []
+      for (let p = 2; p <= maxPagesToFetch; p++) {
+        let pageUrl = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=${p}`
+        if (options.after) {
+          pageUrl += `&after=${encodeURIComponent(options.after)}`
+        }
+        if (options.before) {
+          pageUrl += `&before=${encodeURIComponent(options.before)}`
+        }
+
+        pagePromises.push(
+          fetch(pageUrl, {
+            method: "GET",
+            headers: {
+              Authorization: authHeader,
+              "Content-Type": "application/json",
+            },
+            next: { revalidate: 60 },
+          })
+            .then((r) => (r.ok ? r.json() : []))
+            .catch(() => [])
+        )
       }
 
-      const res = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-        },
-        next: { revalidate: 60 },
+      const pagesResults = await Promise.all(pagePromises)
+      pagesResults.forEach((pData) => {
+        if (Array.isArray(pData)) {
+          rawOrders = rawOrders.concat(pData)
+        }
       })
-
-      if (!res.ok) {
-        throw new Error(`WooCommerce API Error: ${res.status} ${res.statusText}`)
-      }
-
-      const totalPagesHeader = res.headers.get("x-wp-totalpages")
-      if (totalPagesHeader) {
-        totalPages = parseInt(totalPagesHeader, 10)
-      }
-
-      const pageData: any[] = await res.json()
-      rawOrders = rawOrders.concat(pageData)
-
-      // Break if less than perPage returned or reached totalPages limit
-      if (pageData.length < perPageVal || page >= totalPages) {
-        break
-      }
-      page++
-    } while (page <= 10)
+    }
 
     const liveOrders: WooCommerceOrder[] = rawOrders.map((order: any) => {
       const meta = order.meta_data || []
