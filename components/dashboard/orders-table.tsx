@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ColumnDef,
   ColumnFiltersState,
+  SortingState,
   VisibilityState,
   flexRender,
   getCoreRowModel,
@@ -27,6 +28,9 @@ import {
   Globe,
   RefreshCw,
   Clock,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 
 import { WooCommerceOrder } from "@/types/woocommerce"
@@ -64,6 +68,7 @@ const STORAGE_KEY = "wc_dashboard_column_visibility_v3"
 export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [sorting, setSorting] = React.useState<SortingState>([])
   
   // Default column visibility
   const defaultVisibility: VisibilityState = {
@@ -281,22 +286,75 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
       {
         accessorKey: "status",
         header: ({ column }) => {
-          const filterValue = (column.getFilterValue() as string) ?? ""
+          const selectedValues = (column.getFilterValue() as string[]) ?? []
+          const isFiltered = selectedValues.length > 0
+
+          const toggleStatus = (st: string) => {
+            let next: string[]
+            if (selectedValues.includes(st)) {
+              next = selectedValues.filter((v) => v !== st)
+            } else {
+              next = [...selectedValues, st]
+            }
+            column.setFilterValue(next.length > 0 ? next : undefined)
+          }
+
+          const clearStatusFilter = () => {
+            column.setFilterValue(undefined)
+          }
+
+          const triggerLabel =
+            selectedValues.length === 0
+              ? "Всички статуси"
+              : selectedValues.length === 1
+              ? selectedValues[0]
+              : `${selectedValues.length} избрани`
+
           return (
             <div className="space-y-1 py-1">
               <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Статус (Status)</div>
-              <select
-                value={filterValue}
-                onChange={(e) => column.setFilterValue(e.target.value)}
-                className="h-7 w-full rounded-md border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 px-1 text-[11px] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="">Всички статуси</option>
-                {uniqueValues.status.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`h-7 w-full flex items-center justify-between rounded-md border px-2 text-[11px] font-medium transition-colors ${
+                      isFiltered
+                        ? "border-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                        : "border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-slate-700 dark:text-slate-200"
+                    }`}
+                  >
+                    <span className="truncate">{triggerLabel}</span>
+                    <ChevronDown className="h-3 w-3 opacity-60 shrink-0 ml-1" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 p-1">
+                  <DropdownMenuLabel className="text-[11px] text-slate-400 font-semibold px-2 py-1">
+                    Филтриране по статус
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={selectedValues.length === 0}
+                    onCheckedChange={clearStatusFilter}
+                    className="text-xs cursor-pointer font-medium"
+                  >
+                    Всички статуси
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  {uniqueValues.status.map((st) => {
+                    const isChecked = selectedValues.includes(st)
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={st}
+                        checked={isChecked}
+                        onCheckedChange={() => toggleStatus(st)}
+                        className="text-xs cursor-pointer"
+                      >
+                        {st}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )
         },
@@ -328,10 +386,22 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             </Badge>
           )
         },
-        filterFn: (row, id, value) => {
-          if (!value) return true
-          const s = row.getValue(id) as string
-          return s.toLowerCase().includes(String(value).toLowerCase())
+        filterFn: (row, id, value: string[] | string) => {
+          if (!value || (Array.isArray(value) && value.length === 0)) return true
+          const cellRaw = String(row.getValue(id) || "").toLowerCase()
+
+          let localized = cellRaw
+          if (cellRaw === "processing" || cellRaw === "обработка") localized = "обработка"
+          else if (cellRaw === "completed" || cellRaw === "приключена") localized = "приключена"
+          else if (cellRaw === "pending" || cellRaw === "в очакване") localized = "в очакване"
+          else if (cellRaw === "cancelled" || cellRaw === "отказана" || cellRaw === "failed") localized = "отказана"
+          else if (cellRaw === "refunded" || cellRaw === "възстановена") localized = "възстановена"
+
+          const selectedList = Array.isArray(value) ? value : [value]
+          return selectedList.some((sel) => {
+            const sLower = String(sel).toLowerCase()
+            return localized.includes(sLower) || cellRaw.includes(sLower)
+          })
         },
       },
       {
@@ -381,17 +451,56 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
       },
       {
         accessorKey: "total",
+        sortingFn: (rowA, rowB, columnId) => {
+          const valA = parseFloat(String(rowA.getValue(columnId) || "0").replace(",", ".")) || 0
+          const valB = parseFloat(String(rowB.getValue(columnId) || "0").replace(",", ".")) || 0
+          return valA - valB
+        },
         header: ({ column }) => {
-          const filterValue = (column.getFilterValue() as string) ?? ""
+          const isSorted = column.getIsSorted()
+
+          const handleSortClick = (e: React.MouseEvent) => {
+            e.stopPropagation()
+            if (!isSorted) {
+              column.toggleSorting(true) // 1st click: descending (high to low)
+            } else if (isSorted === "desc") {
+              column.toggleSorting(false) // 2nd click: ascending (low to high)
+            } else {
+              column.clearSorting() // 3rd click: revert to regular (chronological)
+            }
+          }
+
           return (
             <div className="space-y-1 py-1 text-right">
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">Общо (€)</div>
-              <Input
-                placeholder="Филтър сума..."
-                value={filterValue}
-                onChange={(e) => column.setFilterValue(e.target.value)}
-                className="h-7 text-[11px] px-2 bg-slate-50 dark:bg-slate-950/60 border-slate-300 dark:border-slate-800 text-right ml-auto w-24"
-              />
+              <div className="flex items-center justify-end space-x-1.5">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Общо (€)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSortClick}
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                    isSorted
+                      ? "bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-300 dark:border-indigo-800"
+                      : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                  title={
+                    isSorted === "desc"
+                      ? "Низходящо (Най-висока сума) -> Натиснете за Възходящо"
+                      : isSorted === "asc"
+                      ? "Възходящо (Най-ниска сума) -> Натиснете за Стандартно (Хронологично)"
+                      : "Сортирай по сума (Натиснете за Низходящо)"
+                  }
+                >
+                  {isSorted === "desc" ? (
+                    <ArrowDown className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  ) : isSorted === "asc" ? (
+                    <ArrowUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                  ) : (
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           )
         },
@@ -615,11 +724,13 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
       columnFilters,
       columnVisibility,
       expanded,
+      sorting,
     },
     onRowSelectionChange: setRowSelection,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: handleColumnVisibilityChange,
     onExpandedChange: setExpanded,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
