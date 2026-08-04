@@ -25,13 +25,15 @@ export interface NetlifyUser {
 interface AuthContextType {
   user: NetlifyUser | null
   loading: boolean
+  login: (email: string, pass: string) => Promise<void>
   openLoginModal: (tab?: "login" | "signup") => void
   logout: () => void
 }
 
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
-  loading: false,
+  loading: true,
+  login: async () => {},
   openLoginModal: () => {},
   logout: () => {},
 })
@@ -43,120 +45,134 @@ const DEV_USER: NetlifyUser = {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = React.useState<NetlifyUser | null>(() => {
-    if (typeof window !== "undefined") {
-      const isLocal =
-        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-      if (isLocal) return DEV_USER
-    }
-    return null
-  })
-  const [loading, setLoading] = React.useState<boolean>(false)
+  const [user, setUser] = React.useState<NetlifyUser | null>(null)
+  const [loading, setLoading] = React.useState<boolean>(true)
+  const isInitializedRef = React.useRef<boolean>(false)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
 
-    let isMounted = true
     const isLocalhost =
       window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
 
-    const initWidget = () => {
+    const setupNetlifyIdentity = () => {
       const netlifyIdentity = window.netlifyIdentity
-      if (!netlifyIdentity) return false
+      if (!netlifyIdentity || isInitializedRef.current) return
 
       try {
+        isInitializedRef.current = true
         netlifyIdentity.init()
 
-        const currentUser = netlifyIdentity.currentUser()
-        if (currentUser && isMounted) {
-          setUser(currentUser)
-        } else if (isLocalhost && isMounted) {
+        const initialUser = netlifyIdentity.currentUser()
+        if (initialUser) {
+          setUser(initialUser)
+        } else if (isLocalhost) {
           setUser(DEV_USER)
         }
 
-        if (isMounted) {
-          setLoading(false)
+        setLoading(false)
+
+        // Handle URL Hash for Invitations / Recoveries / Confirmations automatically
+        const hash = window.location.hash
+        if (
+          hash &&
+          (hash.includes("invite_token") ||
+            hash.includes("recovery_token") ||
+            hash.includes("confirmation_token"))
+        ) {
+          try {
+            netlifyIdentity.open()
+          } catch (e) {
+            console.error("Error opening Netlify Identity token modal:", e)
+          }
         }
 
         netlifyIdentity.on("init", (initUser: any) => {
-          if (isMounted) {
-            setUser(initUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
-            setLoading(false)
-          }
+          setUser(initUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
+          setLoading(false)
         })
 
         netlifyIdentity.on("login", (loggedInUser: any) => {
-          if (isMounted) {
-            setUser(loggedInUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
-            setLoading(false)
-          }
+          setUser(loggedInUser || netlifyIdentity.currentUser() || (isLocalhost ? DEV_USER : null))
+          setLoading(false)
           try {
             netlifyIdentity.close()
           } catch {}
-          if (window.location.hash) {
-            window.history.replaceState(null, "", window.location.pathname)
-          }
         })
 
         netlifyIdentity.on("logout", () => {
-          if (isMounted) {
-            setUser(isLocalhost ? DEV_USER : null)
-            setLoading(false)
-          }
-        })
-
-        netlifyIdentity.on("close", () => {
-          if (isMounted) {
-            setLoading(false)
-          }
-        })
-
-        return true
-      } catch (err) {
-        console.error("Error initializing Netlify Identity:", err)
-        if (isMounted) {
-          if (isLocalhost) setUser(DEV_USER)
+          setUser(isLocalhost ? DEV_USER : null)
           setLoading(false)
-        }
-        return false
+        })
+
+        netlifyIdentity.on("error", (err: any) => {
+          console.error("Netlify Identity Error:", err)
+          setLoading(false)
+        })
+      } catch (err) {
+        console.error("Failed to setup Netlify Identity:", err)
+        if (isLocalhost) setUser(DEV_USER)
+        setLoading(false)
       }
     }
 
     if (window.netlifyIdentity) {
-      initWidget()
+      setupNetlifyIdentity()
     } else {
-      const interval = setInterval(() => {
+      const checkInterval = setInterval(() => {
         if (window.netlifyIdentity) {
-          clearInterval(interval)
-          initWidget()
+          clearInterval(checkInterval)
+          setupNetlifyIdentity()
         }
-      }, 50)
+      }, 100)
 
       const fallbackTimer = setTimeout(() => {
-        clearInterval(interval)
-        if (isMounted) {
-          if (isLocalhost && !user) setUser(DEV_USER)
+        clearInterval(checkInterval)
+        if (!isInitializedRef.current) {
+          if (isLocalhost) setUser(DEV_USER)
           setLoading(false)
         }
-      }, 200)
+      }, 3000)
 
       return () => {
-        clearInterval(interval)
+        clearInterval(checkInterval)
         clearTimeout(fallbackTimer)
-        isMounted = false
       }
     }
+  }, [])
 
-    return () => {
-      isMounted = false
+  const login = React.useCallback(async (email: string, pass: string) => {
+    if (typeof window === "undefined" || !window.netlifyIdentity) {
+      throw new Error("Netlify Identity не е зареден. Моля опитайте след момент.")
     }
-  }, [user])
+
+    try {
+      const netlifyIdentity = window.netlifyIdentity
+      const gotrue = netlifyIdentity.gotrue
+
+      if (gotrue && typeof gotrue.login === "function") {
+        const loggedUser = await gotrue.login(email, pass, true)
+        setUser(loggedUser)
+        return
+      }
+
+      if (typeof netlifyIdentity.login === "function") {
+        const loggedUser = await netlifyIdentity.login(email, pass, true)
+        setUser(loggedUser)
+        return
+      }
+
+      throw new Error("Използвайте Netlify Identity уиджета за вход")
+    } catch (err: any) {
+      console.error("Login error:", err)
+      const msg = err?.json?.error_description || err?.message || "Грешен имейл или парола"
+      throw new Error(msg)
+    }
+  }, [])
 
   const openLoginModal = React.useCallback((tab: "login" | "signup" = "login") => {
     if (typeof window !== "undefined" && window.netlifyIdentity) {
       window.netlifyIdentity.open(tab)
-    } else {
-      alert("Netlify Identity зарежда... Моля опитайте отново след секунда.")
     }
   }, [])
 
@@ -170,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, openLoginModal, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, openLoginModal, logout }}>
       {children}
     </AuthContext.Provider>
   )
