@@ -53,11 +53,12 @@ export function formatRelativeDate(dateString: string): string {
 
     if (diffMin < 1) {
       return "Преди малко"
-    } else if (diffMin < 60) {
+    } else if (diffMin <= 59) {
       return `Преди ${diffMin} ${diffMin === 1 ? "минута" : "минути"}`
-    } else if (diffHours <= 24) {
+    } else if (diffHours <= 2) {
       return `Преди ${diffHours} ${diffHours === 1 ? "час" : "часа"}`
     } else {
+      // More than 2 hours ago: show exact date and time
       return formatDate(dateString)
     }
   } catch {

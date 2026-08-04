@@ -204,7 +204,18 @@ export function DateRangePicker({
   }
 
   return (
-    <div className="relative z-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
+    <div className="relative z-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-3 shadow-md backdrop-blur-md">
+      {/* 10-Min Auto Refresh Live Status Indicator */}
+      <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Авто-обновяване на 10 мин
+        </span>
+      </div>
+
       {/* Time Shortcuts & Calendar Picker Grouped Together */}
       <div className="flex flex-wrap items-center gap-2">
 

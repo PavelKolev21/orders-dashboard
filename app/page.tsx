@@ -109,6 +109,16 @@ export default function DashboardPage() {
     fetchOrders(false, initialMonthDates.start, initialMonthDates.end)
   }, [fetchOrders, initialMonthDates])
 
+  // Auto-refresh every 10 minutes to fetch new incoming orders
+  React.useEffect(() => {
+    const TEN_MINUTES_MS = 10 * 60 * 1000
+    const interval = setInterval(() => {
+      fetchOrders(true, startDate, endDate)
+    }, TEN_MINUTES_MS)
+
+    return () => clearInterval(interval)
+  }, [fetchOrders, startDate, endDate])
+
   // Handle Preset Changes (Today, Yesterday, This Week, L7D, L14D, This Month, L30D, Last Month, All)
   const handlePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset)

@@ -825,24 +825,6 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Secondary / Local Table Refresh Data Button */}
-          {onRefresh && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="h-9 text-xs font-semibold border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
-              title="Обнови данните за поръчките в избрания период"
-            >
-              <RefreshCw
-                className={`mr-1.5 h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400 ${
-                  isRefreshing ? "animate-spin" : ""
-                }`}
-              />
-              Обнови поръчките
-            </Button>
-          )}
 
           {/* Column Toggle Dropdown */}
           <DropdownMenu>
