@@ -22,7 +22,8 @@ export function formatCurrency(amount: number | string): string {
 
 export function formatDate(dateString: string): string {
   try {
-    const date = new Date(dateString)
+    const cleaned = String(dateString).replace(" ", "T")
+    const date = new Date(cleaned)
     if (isNaN(date.getTime())) return dateString
     return new Intl.DateTimeFormat("en-GB", {
       month: "short",
@@ -38,7 +39,8 @@ export function formatDate(dateString: string): string {
 
 export function formatRelativeDate(dateString: string): string {
   try {
-    const date = new Date(dateString)
+    const cleaned = String(dateString).replace(" ", "T")
+    const date = new Date(cleaned)
     if (isNaN(date.getTime())) return dateString
 
     const now = new Date()
@@ -49,15 +51,13 @@ export function formatRelativeDate(dateString: string): string {
     const diffMin = Math.floor(diffMs / (1000 * 60))
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
 
-    // Maximum 4 hours threshold for relative time display
     if (diffMin < 1) {
       return "Преди малко"
     } else if (diffMin < 60) {
       return `Преди ${diffMin} ${diffMin === 1 ? "минута" : "минути"}`
-    } else if (diffHours < 4) {
+    } else if (diffHours <= 24) {
       return `Преди ${diffHours} ${diffHours === 1 ? "час" : "часа"}`
     } else {
-      // After 4 hours, show exact date & time
       return formatDate(dateString)
     }
   } catch {

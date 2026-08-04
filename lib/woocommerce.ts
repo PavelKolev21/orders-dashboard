@@ -172,7 +172,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
     let rawOrders: any[] = []
     const perPageVal = options.perPage || 100
 
-    let page1Url = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=1`
+    let page1Url = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=1&status=any`
     if (options.after) {
       page1Url += `&after=${encodeURIComponent(options.after)}`
     }
@@ -204,7 +204,7 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
     if (maxPagesToFetch > 1) {
       const pagePromises = []
       for (let p = 2; p <= maxPagesToFetch; p++) {
-        let pageUrl = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=${p}`
+        let pageUrl = `${cleanUrl}/wp-json/wc/v3/orders?per_page=${perPageVal}&page=${p}&status=any`
         if (options.after) {
           pageUrl += `&after=${encodeURIComponent(options.after)}`
         }

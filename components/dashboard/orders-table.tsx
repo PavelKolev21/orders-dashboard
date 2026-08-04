@@ -217,6 +217,12 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             #{row.original.id}
           </span>
         ),
+        filterFn: (row, id, value) => {
+          if (!value) return true
+          const searchStr = String(value).trim().toLowerCase().replace(/^#/, "")
+          const cellValue = String(row.getValue(id) ?? "").toLowerCase()
+          return cellValue.includes(searchStr)
+        },
       },
       {
         id: "customer_name",

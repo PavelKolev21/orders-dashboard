@@ -25,18 +25,22 @@ export default function DashboardPage() {
   const [theme, setTheme] = React.useState<"dark" | "light">("light")
 
   // Helper for YYYY-MM-DD in local time
+  // Helper for YYYY-MM-DD in local time
+  const getLocalDateString = React.useCallback((d: Date = new Date()) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }, [])
+
   const initialMonthDates = React.useMemo(() => {
     const now = new Date()
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, "0")
-    const d = String(now.getDate()).padStart(2, "0")
-    const fD = String(firstDay.getDate()).padStart(2, "0")
     return {
-      start: `${y}-${m}-${fD}`,
-      end: `${y}-${m}-${d}`,
+      start: getLocalDateString(firstDay),
+      end: getLocalDateString(now),
     }
-  }, [])
+  }, [getLocalDateString])
 
   // Date Range Filtering state (Default: "this_month")
   const [datePreset, setDatePreset] = React.useState<DateRangePreset>("this_month")
@@ -49,9 +53,6 @@ export default function DashboardPage() {
       router.replace("/login")
     }
   }, [user, authLoading, router])
-
-
-
 
   // Sync theme class on <html> element
   React.useEffect(() => {
@@ -76,10 +77,10 @@ export default function DashboardPage() {
       let url = "/api/orders"
       const params = new URLSearchParams()
       if (start) {
-        params.append("after", `${start}T00:00:00Z`)
+        params.append("after", `${start}T00:00:00`)
       }
       if (end) {
-        params.append("before", `${end}T23:59:59Z`)
+        params.append("before", `${end}T23:59:59`)
       }
       if (params.toString()) {
         url += `?${params.toString()}`
@@ -112,7 +113,7 @@ export default function DashboardPage() {
   const handlePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset)
     const now = new Date()
-    const todayStr = now.toISOString().slice(0, 10)
+    const todayStr = getLocalDateString(now)
     
     if (preset === "all") {
       setStartDate("")
@@ -130,39 +131,39 @@ export default function DashboardPage() {
     } else if (preset === "yesterday") {
       const y = new Date(now)
       y.setDate(now.getDate() - 1)
-      sStr = y.toISOString().slice(0, 10)
+      sStr = getLocalDateString(y)
       eStr = sStr
     } else if (preset === "this_week") {
       const dayOfWeek = now.getDay()
       const distanceToMon = (dayOfWeek + 6) % 7
       const monday = new Date(now)
       monday.setDate(now.getDate() - distanceToMon)
-      sStr = monday.toISOString().slice(0, 10)
+      sStr = getLocalDateString(monday)
       eStr = todayStr
     } else if (preset === "l7d") {
       const d = new Date(now)
       d.setDate(now.getDate() - 7)
-      sStr = d.toISOString().slice(0, 10)
+      sStr = getLocalDateString(d)
       eStr = todayStr
     } else if (preset === "l14d") {
       const d = new Date(now)
       d.setDate(now.getDate() - 14)
-      sStr = d.toISOString().slice(0, 10)
+      sStr = getLocalDateString(d)
       eStr = todayStr
     } else if (preset === "this_month") {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-      sStr = firstDay.toISOString().slice(0, 10)
+      sStr = getLocalDateString(firstDay)
       eStr = todayStr
     } else if (preset === "l30d") {
       const d = new Date(now)
       d.setDate(now.getDate() - 30)
-      sStr = d.toISOString().slice(0, 10)
+      sStr = getLocalDateString(d)
       eStr = todayStr
     } else if (preset === "last_month") {
       const firstDayPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0)
-      sStr = firstDayPrev.toISOString().slice(0, 10)
-      eStr = lastDayPrev.toISOString().slice(0, 10)
+      sStr = getLocalDateString(firstDayPrev)
+      eStr = getLocalDateString(lastDayPrev)
     }
 
     setStartDate(sStr)
@@ -210,14 +211,31 @@ export default function DashboardPage() {
       }
     }
 
-    const startMs = startDate ? new Date(startDate).getTime() : 0
-    const endObj = endDate ? new Date(endDate) : new Date()
-    endObj.setHours(23, 59, 59, 999)
-    const endMs = endObj.getTime()
+    const parseLocalStartMs = (dateStr: string) => {
+      if (!dateStr) return 0
+      const [y, m, d] = dateStr.split("-").map(Number)
+      return new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+    }
+
+    const parseLocalEndMs = (dateStr: string) => {
+      if (!dateStr) return new Date().setHours(23, 59, 59, 999)
+      const [y, m, d] = dateStr.split("-").map(Number)
+      return new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+    }
+
+    const parseOrderDateMs = (dateStr: string) => {
+      if (!dateStr) return 0
+      const cleaned = String(dateStr).replace(" ", "T")
+      const d = new Date(cleaned)
+      return isNaN(d.getTime()) ? 0 : d.getTime()
+    }
+
+    const startMs = parseLocalStartMs(startDate)
+    const endMs = parseLocalEndMs(endDate)
 
     // Filter current period orders
     const currentOrders = allOrders.filter((order) => {
-      const orderMs = new Date(order.date_created).getTime()
+      const orderMs = parseOrderDateMs(order.date_created)
       const isAfterStart = startMs ? orderMs >= startMs : true
       const isBeforeEnd = endMs ? orderMs <= endMs : true
       return isAfterStart && isBeforeEnd
@@ -229,7 +247,7 @@ export default function DashboardPage() {
     const prevStartMs = prevEndMs - durationMs
 
     const prevOrders = allOrders.filter((order) => {
-      const orderMs = new Date(order.date_created).getTime()
+      const orderMs = parseOrderDateMs(order.date_created)
       return orderMs >= prevStartMs && orderMs < prevEndMs
     })
 
