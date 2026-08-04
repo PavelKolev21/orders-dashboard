@@ -235,7 +235,10 @@ export default function DashboardPage() {
 
     const parseOrderDateMs = (dateStr: string) => {
       if (!dateStr) return 0
-      const cleaned = String(dateStr).replace(" ", "T")
+      let cleaned = String(dateStr).trim().replace(" ", "T")
+      if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
+        cleaned += "Z"
+      }
       const d = new Date(cleaned)
       return isNaN(d.getTime()) ? 0 : d.getTime()
     }

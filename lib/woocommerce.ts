@@ -336,8 +336,16 @@ export async function getWooCommerceOrders(options: FetchOrdersOptions = {}): Pr
         }
       })
 
+      const rawDate = order.date_created_gmt || order.date_created || ""
+      const cleanDate = rawDate
+        ? rawDate.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(rawDate)
+          ? rawDate
+          : `${rawDate}Z`
+        : order.date_created
+
       return {
         ...order,
+        date_created: cleanDate,
         total: String(order.total || "0"),
         line_items: enrichedLineItems,
         tracking_type: trackingTypeVal,

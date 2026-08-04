@@ -20,15 +20,22 @@ export function formatCurrency(amount: number | string): string {
   return formatted
 }
 
+function parseOrderDate(dateString: string): Date {
+  if (!dateString) return new Date()
+  let cleaned = String(dateString).trim().replace(" ", "T")
+  if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
+    cleaned += "Z"
+  }
+  const d = new Date(cleaned)
+  return isNaN(d.getTime()) ? new Date() : d
+}
+
 export function formatDate(dateString: string): string {
   try {
-    const cleaned = String(dateString).replace(" ", "T")
-    const date = new Date(cleaned)
-    if (isNaN(date.getTime())) return dateString
+    const date = parseOrderDate(dateString)
     return new Intl.DateTimeFormat("en-GB", {
       month: "short",
       day: "numeric",
-      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     }).format(date)
@@ -39,10 +46,7 @@ export function formatDate(dateString: string): string {
 
 export function formatRelativeDate(dateString: string): string {
   try {
-    const cleaned = String(dateString).replace(" ", "T")
-    const date = new Date(cleaned)
-    if (isNaN(date.getTime())) return dateString
-
+    const date = parseOrderDate(dateString)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
 
