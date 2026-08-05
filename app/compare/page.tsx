@@ -70,7 +70,7 @@ export default function ComparePage() {
     } catch (err) {
       console.error("Compare page fetch error:", err)
       setError(err instanceof Error ? err.message : "Failed to load orders data")
-    } font-sans finally {
+    } finally {
       setLoading(false)
     }
   }, [])
