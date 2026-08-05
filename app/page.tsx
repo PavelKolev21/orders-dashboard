@@ -302,7 +302,7 @@ export default function DashboardPage() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <main className="flex-1 mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
         {loading ? (
           <div className="flex h-96 flex-col items-center justify-center space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/40 shadow-xl">
             <RefreshCw className="h-8 w-8 animate-spin text-indigo-600 dark:text-indigo-400" />
