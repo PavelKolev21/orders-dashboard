@@ -28,9 +28,48 @@ export default function ComparePage() {
   // Default theme
   const [theme, setTheme] = React.useState<"dark" | "light">("light")
 
-  // Comparison Periods state (Default: This Month vs Last Month)
+  const STORAGE_KEY = "wc_dashboard_comparison_periods_v2"
   const defaultPreset = React.useMemo(() => getPresetPeriods()[0], [])
-  const [periods, setPeriods] = React.useState<PeriodConfig[]>(defaultPreset.periods)
+
+  // Initialize comparison periods from localStorage if available
+  const [periods, setPeriods] = React.useState<PeriodConfig[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed) && parsed.length >= 2) {
+            return parsed
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load comparison periods from localStorage:", e)
+      }
+    }
+    return defaultPreset.periods
+  })
+
+  // Save updated periods to state and localStorage
+  const handlePeriodsChange = React.useCallback((newPeriods: PeriodConfig[]) => {
+    setPeriods(newPeriods)
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newPeriods))
+      } catch (e) {
+        console.error("Failed to save comparison periods to localStorage:", e)
+      }
+    }
+  }, [STORAGE_KEY])
+
+  // Clear custom periods and reset back to default preset
+  const handleResetPeriods = React.useCallback(() => {
+    setPeriods(defaultPreset.periods)
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch (e) {}
+    }
+  }, [defaultPreset, STORAGE_KEY])
 
   // Auth Redirect Guard
   React.useEffect(() => {
@@ -156,7 +195,11 @@ export default function ComparePage() {
           <>
             {/* 1. Period Selector & Preset Picker */}
             <section className="relative z-20">
-              <PeriodSelector periods={periods} onChange={setPeriods} />
+              <PeriodSelector
+                periods={periods}
+                onChange={handlePeriodsChange}
+                onReset={handleResetPeriods}
+              />
             </section>
 
             {/* 2. KPI Period Totals Comparison Summary Cards */}

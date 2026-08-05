@@ -9,9 +9,10 @@ import { Calendar, Plus, Trash2, RotateCcw, Sparkles } from "lucide-react"
 interface PeriodSelectorProps {
   periods: PeriodConfig[]
   onChange: (periods: PeriodConfig[]) => void
+  onReset: () => void
 }
 
-export function PeriodSelector({ periods, onChange }: PeriodSelectorProps) {
+export function PeriodSelector({ periods, onChange, onReset }: PeriodSelectorProps) {
   const presets = React.useMemo(() => getPresetPeriods(), [])
 
   const handleSelectPreset = (presetName: string) => {
@@ -92,20 +93,35 @@ export function PeriodSelector({ periods, onChange }: PeriodSelectorProps) {
       </div>
 
       <div className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <Calendar className="h-4 w-4 text-indigo-500" />
             Настройка на периоди за съпоставка ({periods.length} периода)
           </h3>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleAddPeriod}
-            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md flex items-center gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Добави още един период
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="h-8 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1"
+              title="Изчисти персонализираните периоди и върни по подразбиране"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Върни по подразбиране
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddPeriod}
+              className="h-8 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md flex items-center gap-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Добави период
+            </Button>
+          </div>
         </div>
 
         {/* Dynamic Period Inputs Grid */}
