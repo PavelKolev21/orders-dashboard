@@ -10,8 +10,19 @@ function parseTotal(total: any): number {
 
 function getDateKey(dateCreated: any): string {
   if (!dateCreated) return "2026-08-03"
-  const str = String(dateCreated)
-  return str.split("T")[0] || str.substring(0, 10) || "2026-08-03"
+  let cleaned = String(dateCreated).trim().replace(" ", "T")
+  if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
+    cleaned += "Z"
+  }
+  const d = new Date(cleaned)
+  if (isNaN(d.getTime())) {
+    const str = String(dateCreated)
+    return str.split("T")[0] || str.substring(0, 10) || "2026-08-03"
+  }
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 export function computeDashboardMetrics(
@@ -108,13 +119,37 @@ export function computeDashboardMetrics(
       mapDateRevenue[dateKey].orders += 1
     })
 
-    revenueTrends = Object.entries(mapDateRevenue).map(([date, data]) => {
-      const d = new Date(date)
+    // Fill in any missing dates in the range between min and max date
+    const dateKeys = Object.keys(mapDateRevenue).sort()
+    if (dateKeys.length > 0) {
+      const [minY, minM, minD] = dateKeys[0].split("-").map(Number)
+      const [maxY, maxM, maxD] = dateKeys[dateKeys.length - 1].split("-").map(Number)
+      
+      const curr = new Date(minY, minM - 1, minD)
+      const last = new Date(maxY, maxM - 1, maxD)
+      
+      while (curr <= last) {
+        const y = curr.getFullYear()
+        const m = String(curr.getMonth() + 1).padStart(2, "0")
+        const d = String(curr.getDate()).padStart(2, "0")
+        const key = `${y}-${m}-${d}`
+        if (!mapDateRevenue[key]) {
+          mapDateRevenue[key] = { revenue: 0, orders: 0 }
+        }
+        curr.setDate(curr.getDate() + 1)
+      }
+    }
+
+    const sortedMapEntries = Object.entries(mapDateRevenue).sort(([a], [b]) => a.localeCompare(b))
+
+    revenueTrends = sortedMapEntries.map(([dateKey, data]) => {
+      const [y, m, dNum] = dateKey.split("-").map(Number)
+      const d = new Date(y, m - 1, dNum)
       const formattedDate = isNaN(d.getTime())
-        ? date
+        ? dateKey
         : d.toLocaleDateString("en-GB", { month: "short", day: "numeric" })
       return {
-        date,
+        date: dateKey,
         formattedDate,
         revenue: parseFloat(data.revenue.toFixed(2)),
         orders: data.orders,
