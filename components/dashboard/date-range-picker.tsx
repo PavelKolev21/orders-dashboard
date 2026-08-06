@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   Calendar as CalendarIcon,
   RotateCcw,
+  RefreshCw,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -34,6 +35,8 @@ interface DateRangePickerProps {
   preset: DateRangePreset
   onPresetChange: (preset: DateRangePreset) => void
   onDateChange: (startDate: string, endDate: string) => void
+  onRefresh?: () => void
+  isRefreshing?: boolean
   onReset: () => void
 }
 
@@ -61,6 +64,8 @@ export function DateRangePicker({
   preset,
   onPresetChange,
   onDateChange,
+  onRefresh,
+  isRefreshing = false,
   onReset,
 }: DateRangePickerProps) {
   const [localStart, setLocalStart] = React.useState(startDate)
@@ -389,17 +394,16 @@ export function DateRangePicker({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {(preset !== "all" || startDate || endDate) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            className="h-8 px-2 text-xs text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
-            title="Изчисти филтрите"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onRefresh && onRefresh()}
+          disabled={isRefreshing}
+          className="h-8 px-2 text-xs text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+          title="Обнови данните за избрания период"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+        </Button>
       </div>
     </div>
   )

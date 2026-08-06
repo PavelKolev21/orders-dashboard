@@ -119,9 +119,14 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [fetchOrders, startDate, endDate])
 
-  // Handle Preset Changes (Today, Yesterday, This Week, L7D, L14D, This Month, L30D, Last Month, All)
+  // Handle Preset Changes (Today, Yesterday, This Week, L7D, L14D, This Month, L30D, Last Month, All, Custom)
   const handlePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset)
+
+    if (preset === "custom") {
+      return
+    }
+
     const now = new Date()
     const todayStr = getLocalDateString(now)
     
@@ -182,6 +187,7 @@ export default function DashboardPage() {
   }
 
   const handleCustomDateChange = (start: string, end: string) => {
+    setDatePreset("custom")
     setStartDate(start)
     setEndDate(end)
     if (start || end) {
@@ -221,48 +227,58 @@ export default function DashboardPage() {
       }
     }
 
-    const parseLocalStartMs = (dateStr: string) => {
-      if (!dateStr) return 0
-      const [y, m, d] = dateStr.split("-").map(Number)
-      return new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
-    }
-
-    const parseLocalEndMs = (dateStr: string) => {
-      if (!dateStr) return new Date().setHours(23, 59, 59, 999)
-      const [y, m, d] = dateStr.split("-").map(Number)
-      return new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
-    }
-
-    const parseOrderDateMs = (dateStr: string) => {
-      if (!dateStr) return 0
-      let cleaned = String(dateStr).trim().replace(" ", "T")
-      if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
-        cleaned += "Z"
-      }
+    const getOrderDayKey = (dateStr: string) => {
+      if (!dateStr) return ""
+      const cleaned = String(dateStr).trim().replace(" ", "T")
+      const match = cleaned.match(/^(\d{4}-\d{2}-\d{2})/)
+      if (match) return match[1]
       const d = new Date(cleaned)
-      return isNaN(d.getTime()) ? 0 : d.getTime()
+      if (isNaN(d.getTime())) return ""
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      return `${y}-${m}-${day}`
     }
-
-    const startMs = parseLocalStartMs(startDate)
-    const endMs = parseLocalEndMs(endDate)
 
     // Filter current period orders
     const currentOrders = allOrders.filter((order) => {
-      const orderMs = parseOrderDateMs(order.date_created)
-      const isAfterStart = startMs ? orderMs >= startMs : true
-      const isBeforeEnd = endMs ? orderMs <= endMs : true
+      const orderDay = getOrderDayKey(order.date_created)
+      if (!orderDay) return true
+      const isAfterStart = startDate ? orderDay >= startDate : true
+      const isBeforeEnd = endDate ? orderDay <= endDate : true
       return isAfterStart && isBeforeEnd
     })
 
     // Calculate previous period equal duration bounds
-    const durationMs = endMs - (startMs || (endMs - 30 * 24 * 60 * 60 * 1000))
-    const prevEndMs = startMs || (endMs - durationMs)
-    const prevStartMs = prevEndMs - durationMs
+    let prevOrders: WooCommerceOrder[] = []
+    if (startDate && endDate) {
+      const [sY, sM, sD] = startDate.split("-").map(Number)
+      const [eY, eM, eD] = endDate.split("-").map(Number)
+      const startD = new Date(sY, sM - 1, sD)
+      const endD = new Date(eY, eM - 1, eD)
+      const diffMs = endD.getTime() - startD.getTime()
+      const dayMs = 24 * 60 * 60 * 1000
+      const durationDays = Math.max(1, Math.round(diffMs / dayMs) + 1)
 
-    const prevOrders = allOrders.filter((order) => {
-      const orderMs = parseOrderDateMs(order.date_created)
-      return orderMs >= prevStartMs && orderMs < prevEndMs
-    })
+      const prevEndD = new Date(startD.getTime() - dayMs)
+      const prevStartD = new Date(prevEndD.getTime() - (durationDays - 1) * dayMs)
+
+      const formatD = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate()).padStart(2, "0")
+        return `${y}-${m}-${day}`
+      }
+
+      const prevStartStr = formatD(prevStartD)
+      const prevEndStr = formatD(prevEndD)
+
+      prevOrders = allOrders.filter((order) => {
+        const orderDay = getOrderDayKey(order.date_created)
+        if (!orderDay) return false
+        return orderDay >= prevStartStr && orderDay <= prevEndStr
+      })
+    }
 
     return {
       filteredOrders: currentOrders,
@@ -332,6 +348,8 @@ export default function DashboardPage() {
                 preset={datePreset}
                 onPresetChange={handlePresetChange}
                 onDateChange={handleCustomDateChange}
+                onRefresh={() => fetchOrders(true, startDate, endDate)}
+                isRefreshing={refreshing}
                 onReset={handleResetDates}
               />
             </section>
