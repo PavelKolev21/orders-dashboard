@@ -1,4 +1,5 @@
 import { WooCommerceOrder } from "@/types/woocommerce"
+import { getBulgarianDateString, getBulgarianTodayString, parseOrderDate } from "@/lib/timezone"
 
 export interface PeriodConfig {
   id: string
@@ -59,31 +60,10 @@ function parseTotal(total: any): number {
   return isNaN(val) ? 0 : val
 }
 
-function parseLocalMs(dateStr: string, isEnd = false): number {
-  if (!dateStr) return 0
-  const parts = dateStr.split("-").map(Number)
-  if (parts.length < 3) return 0
-  const [y, m, d] = parts
-  if (isEnd) {
-    return new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
-  }
-  return new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
-}
-
-function parseOrderDateMs(dateStr: string): number {
-  if (!dateStr) return 0
-  let cleaned = String(dateStr).trim().replace(" ", "T")
-  if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
-    cleaned += "Z"
-  }
-  const d = new Date(cleaned)
-  return isNaN(d.getTime()) ? 0 : d.getTime()
-}
-
 export function getPresetPeriods(): { name: string; label: string; periods: PeriodConfig[] }[] {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  const todayStr = getBulgarianTodayString()
+  const [year, monthNum, dayNum] = todayStr.split("-").map(Number)
+  const month = monthNum - 1
 
   const formatLocal = (d: Date) => {
     const y = d.getFullYear()
@@ -94,15 +74,15 @@ export function getPresetPeriods(): { name: string; label: string; periods: Peri
 
   // Preset 1: This Month vs Last Month
   const thisMonthStart = new Date(year, month, 1)
-  const thisMonthEnd = now
+  const thisMonthEnd = new Date(year, month, dayNum)
 
   const lastMonthStart = new Date(year, month - 1, 1)
   const lastMonthEnd = new Date(year, month, 0)
 
   // Preset 2: Last 7 Days vs Previous 7 Days
-  const l7dEnd = now
-  const l7dStart = new Date(now)
-  l7dStart.setDate(now.getDate() - 6)
+  const l7dEnd = new Date(year, month, dayNum)
+  const l7dStart = new Date(l7dEnd)
+  l7dStart.setDate(l7dEnd.getDate() - 6)
 
   const prev7dEnd = new Date(l7dStart)
   prev7dEnd.setDate(l7dStart.getDate() - 1)
@@ -199,13 +179,10 @@ export function computeMultiPeriodComparison(
 
   // 1. Filter orders for each period & calculate metrics
   const periodSummaries: PeriodSummary[] = periods.map((p) => {
-    const startMs = parseLocalMs(p.startDate)
-    const endMs = parseLocalMs(p.endDate, true)
-
     const periodOrders = allOrders.filter((order) => {
-      const orderMs = parseOrderDateMs(order.date_created)
-      const afterStart = startMs ? orderMs >= startMs : true
-      const beforeEnd = endMs ? orderMs <= endMs : true
+      const orderDay = getBulgarianDateString(order.date_created)
+      const afterStart = p.startDate ? orderDay >= p.startDate : true
+      const beforeEnd = p.endDate ? orderDay <= p.endDate : true
       return afterStart && beforeEnd
     })
 
@@ -255,43 +232,43 @@ export function computeMultiPeriodComparison(
     const summary = periodSummaries.find((s) => s.period.id === p.id)
     const orders = summary ? summary.orders : []
 
-    const startMs = parseLocalMs(p.startDate)
-    const endMs = parseLocalMs(p.endDate, true)
+    const [sY, sM, sD] = p.startDate.split("-").map(Number)
+    const [eY, eM, eD] = p.endDate.split("-").map(Number)
+    const startD = new Date(sY, sM - 1, sD)
+    const endD = new Date(eY, eM - 1, eD)
 
-    if (!startMs || !endMs || startMs > endMs) return
+    if (isNaN(startD.getTime()) || isNaN(endD.getTime()) || startD > endD) return
 
-    const numDays = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)))
+    const diffMs = endD.getTime() - startD.getTime()
+    const numDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1)
     if (numDays > maxDays) maxDays = numDays
 
     // Group orders by relative day offset (0 to numDays - 1)
     orders.forEach((o) => {
-      const oMs = parseOrderDateMs(o.date_created)
-      const diffMs = oMs - startMs
-      if (diffMs >= 0) {
-        const dayIdx = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-        if (dayIdx >= 0 && dayIdx < numDays) {
-          if (!periodDailyMaps[p.id][dayIdx]) {
-            periodDailyMaps[p.id][dayIdx] = { dateStr: "", revenue: 0, orders: 0 }
-          }
-          if (o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана") {
-            periodDailyMaps[p.id][dayIdx].revenue += parseTotal(o.total)
-          }
-          periodDailyMaps[p.id][dayIdx].orders += 1
+      const orderDayStr = getBulgarianDateString(o.date_created)
+      const [oY, oM, oD] = orderDayStr.split("-").map(Number)
+      const oDate = new Date(oY, oM - 1, oD)
+      const dayIdx = Math.round((oDate.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24))
+
+      if (dayIdx >= 0 && dayIdx < numDays) {
+        if (!periodDailyMaps[p.id][dayIdx]) {
+          periodDailyMaps[p.id][dayIdx] = { dateStr: "", revenue: 0, orders: 0 }
         }
+        if (o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана") {
+          periodDailyMaps[p.id][dayIdx].revenue += parseTotal(o.total)
+        }
+        periodDailyMaps[p.id][dayIdx].orders += 1
       }
     })
 
     // Assign date labels for each day index
-    const sDateParts = p.startDate.split("-").map(Number)
-    if (sDateParts.length === 3) {
-      for (let i = 0; i < numDays; i++) {
-        const curDate = new Date(sDateParts[0], sDateParts[1] - 1, sDateParts[2] + i)
-        const dateStr = curDate.toLocaleDateString("en-GB", { month: "short", day: "numeric" })
-        if (!periodDailyMaps[p.id][i]) {
-          periodDailyMaps[p.id][i] = { dateStr, revenue: 0, orders: 0 }
-        } else {
-          periodDailyMaps[p.id][i].dateStr = dateStr
-        }
+    for (let i = 0; i < numDays; i++) {
+      const curDate = new Date(sY, sM - 1, sD + i)
+      const dateStr = curDate.toLocaleDateString("en-GB", { month: "short", day: "numeric" })
+      if (!periodDailyMaps[p.id][i]) {
+        periodDailyMaps[p.id][i] = { dateStr, revenue: 0, orders: 0 }
+      } else {
+        periodDailyMaps[p.id][i].dateStr = dateStr
       }
     }
   })

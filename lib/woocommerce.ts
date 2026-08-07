@@ -1,5 +1,6 @@
 import { MOCK_ORDERS } from "@/lib/mock-data"
 import { WooCommerceOrder, OrdersApiResponse } from "@/types/woocommerce"
+import { getBulgarianDateString, getBulgarianHour, parseOrderDate } from "@/lib/timezone"
 
 function parseTotal(total: any): number {
   if (!total) return 0
@@ -9,20 +10,7 @@ function parseTotal(total: any): number {
 }
 
 function getDateKey(dateCreated: any): string {
-  if (!dateCreated) return "2026-08-03"
-  let cleaned = String(dateCreated).trim().replace(" ", "T")
-  if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
-    cleaned += "Z"
-  }
-  const d = new Date(cleaned)
-  if (isNaN(d.getTime())) {
-    const str = String(dateCreated)
-    return str.split("T")[0] || str.substring(0, 10) || "2026-08-03"
-  }
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return getBulgarianDateString(dateCreated)
 }
 
 export function computeDashboardMetrics(
@@ -66,8 +54,8 @@ export function computeDashboardMetrics(
   }
 
   const sortedOrders = [...orders].sort((a, b) => {
-    const tA = a.date_created ? new Date(a.date_created).getTime() : 0
-    const tB = b.date_created ? new Date(b.date_created).getTime() : 0
+    const tA = a.date_created ? parseOrderDate(a.date_created).getTime() : 0
+    const tB = b.date_created ? parseOrderDate(b.date_created).getTime() : 0
     return tA - tB
   })
 
@@ -83,8 +71,7 @@ export function computeDashboardMetrics(
     }
 
     sortedOrders.forEach((order) => {
-      const d = order.date_created ? new Date(order.date_created) : new Date()
-      const hour = isNaN(d.getTime()) ? 0 : d.getHours()
+      const hour = getBulgarianHour(order.date_created)
       const amount = parseTotal(order.total)
 
       if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {

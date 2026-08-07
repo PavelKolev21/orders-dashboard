@@ -12,6 +12,8 @@ import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { OrdersTable } from "@/components/dashboard/orders-table"
 import { AlertCircle, RefreshCw } from "lucide-react"
 
+import { getBulgarianDateString, getPresetDateRange, getBulgarianDateRangeIso } from "@/lib/timezone"
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -24,23 +26,9 @@ export default function DashboardPage() {
   // Default main theme is LIGHT (white mode)
   const [theme, setTheme] = React.useState<"dark" | "light">("light")
 
-  // Helper for YYYY-MM-DD in local time
-  // Helper for YYYY-MM-DD in local time
-  const getLocalDateString = React.useCallback((d: Date = new Date()) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, "0")
-    const day = String(d.getDate()).padStart(2, "0")
-    return `${y}-${m}-${day}`
-  }, [])
-
   const initialMonthDates = React.useMemo(() => {
-    const now = new Date()
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-    return {
-      start: getLocalDateString(firstDay),
-      end: getLocalDateString(now),
-    }
-  }, [getLocalDateString])
+    return getPresetDateRange("this_month")
+  }, [])
 
   // Date Range Filtering state (Default: "this_month")
   const [datePreset, setDatePreset] = React.useState<DateRangePreset>("this_month")
@@ -76,11 +64,10 @@ export default function DashboardPage() {
     try {
       let url = "/api/orders"
       const params = new URLSearchParams()
-      if (start) {
-        params.append("after", `${start}T00:00:00`)
-      }
-      if (end) {
-        params.append("before", `${end}T23:59:59`)
+      if (start || end) {
+        const { after, before } = getBulgarianDateRangeIso(start, end)
+        if (after) params.append("after", after)
+        if (before) params.append("before", before)
       }
       if (params.toString()) {
         url += `?${params.toString()}`
@@ -127,9 +114,6 @@ export default function DashboardPage() {
       return
     }
 
-    const now = new Date()
-    const todayStr = getLocalDateString(now)
-    
     if (preset === "all") {
       setStartDate("")
       setEndDate("")
@@ -137,49 +121,7 @@ export default function DashboardPage() {
       return
     }
 
-    let sStr = todayStr
-    let eStr = todayStr
-
-    if (preset === "today") {
-      sStr = todayStr
-      eStr = todayStr
-    } else if (preset === "yesterday") {
-      const y = new Date(now)
-      y.setDate(now.getDate() - 1)
-      sStr = getLocalDateString(y)
-      eStr = sStr
-    } else if (preset === "this_week") {
-      const dayOfWeek = now.getDay()
-      const distanceToMon = (dayOfWeek + 6) % 7
-      const monday = new Date(now)
-      monday.setDate(now.getDate() - distanceToMon)
-      sStr = getLocalDateString(monday)
-      eStr = todayStr
-    } else if (preset === "l7d") {
-      const d = new Date(now)
-      d.setDate(now.getDate() - 7)
-      sStr = getLocalDateString(d)
-      eStr = todayStr
-    } else if (preset === "l14d") {
-      const d = new Date(now)
-      d.setDate(now.getDate() - 14)
-      sStr = getLocalDateString(d)
-      eStr = todayStr
-    } else if (preset === "this_month") {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-      sStr = getLocalDateString(firstDay)
-      eStr = todayStr
-    } else if (preset === "l30d") {
-      const d = new Date(now)
-      d.setDate(now.getDate() - 30)
-      sStr = getLocalDateString(d)
-      eStr = todayStr
-    } else if (preset === "last_month") {
-      const firstDayPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0)
-      sStr = getLocalDateString(firstDayPrev)
-      eStr = getLocalDateString(lastDayPrev)
-    }
+    const { start: sStr, end: eStr } = getPresetDateRange(preset)
 
     setStartDate(sStr)
     setEndDate(eStr)
@@ -228,16 +170,7 @@ export default function DashboardPage() {
     }
 
     const getOrderDayKey = (dateStr: string) => {
-      if (!dateStr) return ""
-      const cleaned = String(dateStr).trim().replace(" ", "T")
-      const match = cleaned.match(/^(\d{4}-\d{2}-\d{2})/)
-      if (match) return match[1]
-      const d = new Date(cleaned)
-      if (isNaN(d.getTime())) return ""
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, "0")
-      const day = String(d.getDate()).padStart(2, "0")
-      return `${y}-${m}-${day}`
+      return getBulgarianDateString(dateStr)
     }
 
     // Filter current period orders

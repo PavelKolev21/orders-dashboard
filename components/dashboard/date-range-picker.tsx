@@ -40,6 +40,8 @@ interface DateRangePickerProps {
   onReset: () => void
 }
 
+import { getBulgarianTodayString } from "@/lib/timezone"
+
 const MONTH_NAMES_BG = [
   "Януари",
   "Февруари",
@@ -56,7 +58,7 @@ const MONTH_NAMES_BG = [
 ]
 
 const WEEKDAYS_BG = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
-const MAX_DATE = new Date().toISOString().slice(0, 10)
+const MAX_DATE = getBulgarianTodayString()
 
 export function DateRangePicker({
   startDate,

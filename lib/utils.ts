@@ -20,20 +20,13 @@ export function formatCurrency(amount: number | string): string {
   return formatted
 }
 
-function parseOrderDate(dateString: string): Date {
-  if (!dateString) return new Date()
-  let cleaned = String(dateString).trim().replace(" ", "T")
-  if (!cleaned.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(cleaned)) {
-    cleaned += "Z"
-  }
-  const d = new Date(cleaned)
-  return isNaN(d.getTime()) ? new Date() : d
-}
+import { BULGARIAN_TIMEZONE, parseOrderDate } from "@/lib/timezone"
 
 export function formatDate(dateString: string): string {
   try {
     const date = parseOrderDate(dateString)
     return new Intl.DateTimeFormat("en-GB", {
+      timeZone: BULGARIAN_TIMEZONE,
       month: "short",
       day: "numeric",
       hour: "2-digit",
