@@ -224,12 +224,12 @@ export function DateRangePicker({
       </div>
 
       {/* Time Shortcuts & Calendar Picker Grouped Together */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <Button
           variant={preset === "today" ? "default" : "outline"}
           size="sm"
           onClick={() => onPresetChange("today")}
-          className="h-7 sm:h-8 text-[11px] sm:text-xs font-medium px-2 sm:px-3 flex-1 sm:flex-none justify-center"
+          className="h-8 text-xs font-medium px-2.5 sm:px-3 shrink-0"
         >
           Днес
         </Button>
@@ -238,7 +238,7 @@ export function DateRangePicker({
           variant={preset === "yesterday" ? "default" : "outline"}
           size="sm"
           onClick={() => onPresetChange("yesterday")}
-          className="h-7 sm:h-8 text-[11px] sm:text-xs font-medium px-2 sm:px-3 flex-1 sm:flex-none justify-center"
+          className="h-8 text-xs font-medium px-2.5 sm:px-3 shrink-0"
         >
           Вчера
         </Button>
@@ -247,7 +247,7 @@ export function DateRangePicker({
           variant={preset === "this_week" ? "default" : "outline"}
           size="sm"
           onClick={() => onPresetChange("this_week")}
-          className="h-7 sm:h-8 text-[11px] sm:text-xs font-medium px-2 sm:px-3 flex-1 sm:flex-none justify-center"
+          className="h-8 text-xs font-medium px-2.5 sm:px-3 shrink-0"
         >
           Тази седмица
         </Button>
@@ -260,13 +260,13 @@ export function DateRangePicker({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all flex items-center justify-between sm:justify-start gap-2 shadow-sm w-full sm:w-auto"
+              className="h-8 sm:h-9 px-3 text-xs font-semibold border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all flex items-center gap-2 shadow-sm shrink-0"
             >
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <CalendarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-500 shrink-0" />
                 <span className="truncate">{formattedRangeDisplay}</span>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 opacity-70 ml-1 shrink-0" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-70 ml-0.5 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
 

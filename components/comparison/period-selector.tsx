@@ -285,6 +285,16 @@ export function PeriodSelector({ periods, onChange, onReset }: PeriodSelectorPro
     onChange([...periods, newPeriod])
   }
 
+  const handleMovePeriod = (idx: number, direction: "left" | "right") => {
+    const targetIdx = direction === "left" ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= periods.length) return
+    const newPeriods = [...periods]
+    const temp = newPeriods[idx]
+    newPeriods[idx] = newPeriods[targetIdx]
+    newPeriods[targetIdx] = temp
+    onChange(newPeriods)
+  }
+
   const handleRemovePeriod = (id: string) => {
     if (periods.length <= 2) return // Maintain at least 2 periods
     onChange(periods.filter((p) => p.id !== id))
@@ -357,7 +367,7 @@ export function PeriodSelector({ periods, onChange, onReset }: PeriodSelectorPro
             >
               {/* Header tag & indicator */}
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span
                     className="h-3 w-3 rounded-full shrink-0 shadow-sm"
                     style={{ backgroundColor: p.color }}
@@ -366,11 +376,38 @@ export function PeriodSelector({ periods, onChange, onReset }: PeriodSelectorPro
                     type="text"
                     value={p.label}
                     onChange={(e) => handleUpdatePeriod(p.id, "label", e.target.value)}
-                    className="h-7 text-xs font-bold bg-transparent border-slate-200 dark:border-slate-700/60 focus:border-indigo-500 w-full sm:w-36 px-2"
+                    className="h-7 text-xs font-bold bg-transparent border-slate-200 dark:border-slate-700/60 focus:border-indigo-500 w-full sm:w-32 px-2"
                     placeholder={`Период ${idx + 1}`}
                   />
                 </div>
+
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Reorder Buttons: Move Left & Move Right */}
+                  <div className="flex items-center bg-slate-200/60 dark:bg-slate-800/60 rounded-md p-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={idx === 0}
+                      onClick={() => handleMovePeriod(idx, "left")}
+                      className="h-5 w-5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-20 p-0"
+                      title="Премести наляво"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={idx === periods.length - 1}
+                      onClick={() => handleMovePeriod(idx, "right")}
+                      className="h-5 w-5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-20 p-0"
+                      title="Премести надясно"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+
                   <input
                     type="color"
                     value={p.color}

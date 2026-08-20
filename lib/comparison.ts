@@ -1,5 +1,6 @@
 import { WooCommerceOrder } from "@/types/woocommerce"
 import { getBulgarianDateString, getBulgarianTodayString, parseOrderDate } from "@/lib/timezone"
+import { isPrimaryStatus } from "@/lib/woocommerce"
 
 export interface PeriodConfig {
   id: string
@@ -187,11 +188,11 @@ export function computeMultiPeriodComparison(
     })
 
     const validOrders = periodOrders.filter(
-      (o) => o && o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
+      (o) => o && isPrimaryStatus(o.status)
     )
 
     const totalRevenue = validOrders.reduce((sum, o) => sum + parseTotal(o.total), 0)
-    const totalOrders = periodOrders.length
+    const totalOrders = validOrders.length
     const averageOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : 0
 
     // Source Breakdown
@@ -199,10 +200,10 @@ export function computeMultiPeriodComparison(
     periodOrders.forEach((o) => {
       const src = o.source || "Директна"
       if (!sourceMap[src]) sourceMap[src] = { revenue: 0, orders: 0 }
-      if (o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана") {
+      if (isPrimaryStatus(o.status)) {
         sourceMap[src].revenue += parseTotal(o.total)
+        sourceMap[src].orders += 1
       }
-      sourceMap[src].orders += 1
     })
 
     const sourceMetrics: SourceMetric[] = Object.entries(sourceMap).map(([src, d]) => ({
@@ -254,10 +255,10 @@ export function computeMultiPeriodComparison(
         if (!periodDailyMaps[p.id][dayIdx]) {
           periodDailyMaps[p.id][dayIdx] = { dateStr: "", revenue: 0, orders: 0 }
         }
-        if (o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана") {
+        if (isPrimaryStatus(o.status)) {
           periodDailyMaps[p.id][dayIdx].revenue += parseTotal(o.total)
+          periodDailyMaps[p.id][dayIdx].orders += 1
         }
-        periodDailyMaps[p.id][dayIdx].orders += 1
       }
     })
 
