@@ -30,8 +30,8 @@ export default function DashboardPage() {
     return getPresetDateRange("this_month")
   }, [])
 
-  // Toggle state to display pending orders in KPI cards
-  const [showPending, setShowPending] = React.useState<boolean>(true)
+  // Toggle state to display pending orders in KPI cards (Default: false)
+  const [showPending, setShowPending] = React.useState<boolean>(false)
 
   // Date Range Filtering state (Default: "this_month")
   const [datePreset, setDatePreset] = React.useState<DateRangePreset>("this_month")

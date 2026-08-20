@@ -925,15 +925,16 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
       const val = parseFloat(String(row.original.total || 0).replace(",", "."))
       return sum + (isNaN(val) ? 0 : val)
     }, 0)
-    const totalPoints = activeRows.reduce((sum, row) => {
-      return sum + (Number(row.original.points) || 0)
+    const totalDiscounts = activeRows.reduce((sum, row) => {
+      const val = parseFloat(String(row.original.discount_total || 0).replace(",", "."))
+      return sum + (isNaN(val) ? 0 : val)
     }, 0)
     const averageValue = count > 0 ? totalAmount / count : 0
 
     return {
       count,
       totalAmount: parseFloat(totalAmount.toFixed(2)),
-      totalPoints,
+      totalDiscounts: parseFloat(totalDiscounts.toFixed(2)),
       averageValue: parseFloat(averageValue.toFixed(2)),
     }
   }, [activeRows])
@@ -1073,12 +1074,10 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             <span className="text-sky-600 dark:text-sky-400 font-bold">{formatCurrency(summaryMetrics.averageValue)}</span>
           </div>
 
-          {summaryMetrics.totalPoints > 0 && (
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Точки:</span>
-              <span className="text-amber-600 dark:text-amber-400 font-bold">{summaryMetrics.totalPoints.toLocaleString()} т.</span>
-            </div>
-          )}
+          <div>
+            <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Общо отстъпки:</span>
+            <span className="text-rose-600 dark:text-rose-400 font-bold">{formatCurrency(summaryMetrics.totalDiscounts)}</span>
+          </div>
         </div>
       </div>
 
@@ -1167,8 +1166,8 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
                 }
                 if (column.id === "points") {
                   return (
-                    <TableCell key={column.id} className="py-3 px-3 text-xs font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
-                      {summaryMetrics.totalPoints.toLocaleString()} т.
+                    <TableCell key={column.id} className="py-3 px-3 text-xs font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                      -{formatCurrency(summaryMetrics.totalDiscounts)}
                     </TableCell>
                   )
                 }

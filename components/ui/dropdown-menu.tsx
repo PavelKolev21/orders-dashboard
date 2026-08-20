@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 
 interface DropdownMenuProps {
   children: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 interface DropdownMenuTriggerProps {
@@ -28,14 +30,30 @@ interface DropdownMenuCheckboxItemProps {
 
 const DropdownContext = React.createContext<{
   open: boolean
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>
+  setOpen: (value: boolean | ((prev: boolean) => boolean)) => void
 }>({
   open: false,
   setOpen: () => {},
 })
 
-export function DropdownMenu({ children }: DropdownMenuProps) {
-  const [open, setOpen] = React.useState(false)
+export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: DropdownMenuProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+
+  const setOpen = React.useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const nextOpen = typeof value === "function" ? value(open) : value
+      if (!isControlled) {
+        setUncontrolledOpen(nextOpen)
+      }
+      if (onOpenChange) {
+        onOpenChange(nextOpen)
+      }
+    },
+    [isControlled, open, onOpenChange]
+  )
+
   const menuRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -48,11 +66,11 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
-  }, [])
+  }, [setOpen])
 
   return (
     <DropdownContext.Provider value={{ open, setOpen }}>
-      <div ref={menuRef} className="relative z-50 inline-block text-left">
+      <div ref={menuRef} className="relative z-50 inline-block text-left w-full">
         {children}
       </div>
     </DropdownContext.Provider>
