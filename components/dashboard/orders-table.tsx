@@ -163,20 +163,26 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             type="checkbox"
             checked={table.getIsAllPageRowsSelected()}
             onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+            onClick={(e) => e.stopPropagation()}
             className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 accent-indigo-600 cursor-pointer"
             title="Select all on page"
           />
         ),
         cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={(e) => {
-              e.stopPropagation()
-              row.toggleSelected(!!e.target.checked)
-            }}
-            className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 accent-indigo-600 cursor-pointer"
-          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center"
+          >
+            <input
+              type="checkbox"
+              checked={row.getIsSelected()}
+              onChange={(e) => {
+                row.toggleSelected(!!e.target.checked)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 accent-indigo-600 cursor-pointer"
+            />
+          </div>
         ),
         enableHiding: false,
       },
@@ -1102,7 +1108,15 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
                     onClick={() => row.toggleExpanded()}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
+                      <TableCell
+                        key={cell.id}
+                        className="py-3"
+                        onClick={(e) => {
+                          if (cell.column.id === "select") {
+                            e.stopPropagation()
+                          }
+                        }}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
