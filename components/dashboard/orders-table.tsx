@@ -31,6 +31,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Calculator,
 } from "lucide-react"
 
 import { WooCommerceOrder } from "@/types/woocommerce"
@@ -42,6 +43,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -738,7 +740,7 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
     getExpandedRowModel: getExpandedRowModel(),
     initialState: {
       pagination: {
-        pageSize: 10,
+        pageSize: 20,
       },
     },
   })
@@ -902,8 +904,33 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
     payment_method: "Метод плащане",
   }
 
-  const selectedCount = Object.keys(rowSelection).length
+  const selectedRows = table.getSelectedRowModel().rows
+  const filteredRows = table.getFilteredRowModel().rows
+  const selectedCount = selectedRows.length
+  const isCustomSelection = selectedCount > 0
   const isFiltered = columnFilters.length > 0
+
+  const activeRows = isCustomSelection ? selectedRows : filteredRows
+
+  // Calculate aggregated summary metrics for the total row
+  const summaryMetrics = React.useMemo(() => {
+    const count = activeRows.length
+    const totalAmount = activeRows.reduce((sum, row) => {
+      const val = parseFloat(String(row.original.total || 0).replace(",", "."))
+      return sum + (isNaN(val) ? 0 : val)
+    }, 0)
+    const totalPoints = activeRows.reduce((sum, row) => {
+      return sum + (Number(row.original.points) || 0)
+    }, 0)
+    const averageValue = count > 0 ? totalAmount / count : 0
+
+    return {
+      count,
+      totalAmount: parseFloat(totalAmount.toFixed(2)),
+      totalPoints,
+      averageValue: parseFloat(averageValue.toFixed(2)),
+    }
+  }, [activeRows])
 
   return (
     <div className="space-y-4">
@@ -913,7 +940,7 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
           <div className="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400">
             <SlidersHorizontal className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             <span>
-              Показване на {table.getFilteredRowModel().rows.length} от {data.length} поръчки
+              Показване на {filteredRows.length} от {data.length} поръчки
             </span>
             {selectedCount > 0 && (
               <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
@@ -936,7 +963,6 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-
           {/* Column Toggle Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger>
@@ -1007,6 +1033,49 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
         </div>
       </div>
 
+      {/* Top Total Summary Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-500/25 bg-indigo-50/70 dark:bg-slate-900/90 p-3.5 text-xs shadow-sm transition-all">
+        <div className="flex items-center gap-2">
+          <span className="font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 text-xs">
+            <Calculator className="w-4 h-4 text-indigo-500 shrink-0" />
+            {isCustomSelection ? "Тотал на избраните поръчки:" : "Тотал на филтрираните поръчки:"}
+          </span>
+          {isCustomSelection ? (
+            <span className="rounded-full bg-indigo-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+              {selectedCount} от {filteredRows.length} избрани
+            </span>
+          ) : isFiltered ? (
+            <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              Филтриран преглед
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 font-semibold text-slate-800 dark:text-slate-100">
+          <div>
+            <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Брой:</span>
+            <span className="text-indigo-600 dark:text-indigo-400 font-bold">{summaryMetrics.count.toLocaleString()}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Общо сума:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">{formatCurrency(summaryMetrics.totalAmount)}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Средна поръчка:</span>
+            <span className="text-sky-600 dark:text-sky-400 font-bold">{formatCurrency(summaryMetrics.averageValue)}</span>
+          </div>
+
+          {summaryMetrics.totalPoints > 0 && (
+            <div>
+              <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">Точки:</span>
+              <span className="text-amber-600 dark:text-amber-400 font-bold">{summaryMetrics.totalPoints.toLocaleString()} т.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Table Grid */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800/90 bg-white/90 dark:bg-slate-900/70 shadow-lg dark:shadow-2xl overflow-hidden">
         <Table>
@@ -1060,22 +1129,74 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
               </TableRow>
             )}
           </TableBody>
+
+          {/* Bottom Total Summary Footer Row */}
+          <TableFooter className="bg-slate-100/90 dark:bg-slate-900/90 font-bold border-t-2 border-indigo-500/40 text-slate-900 dark:text-slate-100">
+            <TableRow className="hover:bg-transparent">
+              {table.getVisibleFlatColumns().map((column) => {
+                if (column.id === "select" || column.id === "expander") {
+                  return <TableCell key={column.id} className="py-3 px-3 text-xs" />
+                }
+                if (column.id === "id") {
+                  return (
+                    <TableCell key={column.id} className="py-3 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider whitespace-nowrap">
+                      {isCustomSelection ? `ТОТАЛ (Избрани ${selectedCount}):` : `ТОТАЛ (${summaryMetrics.count}):`}
+                    </TableCell>
+                  )
+                }
+                if (column.id === "total") {
+                  return (
+                    <TableCell key={column.id} className="py-3 px-3 text-sm font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                      {formatCurrency(summaryMetrics.totalAmount)}
+                    </TableCell>
+                  )
+                }
+                if (column.id === "points") {
+                  return (
+                    <TableCell key={column.id} className="py-3 px-3 text-xs font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                      {summaryMetrics.totalPoints.toLocaleString()} т.
+                    </TableCell>
+                  )
+                }
+                return <TableCell key={column.id} className="py-3 px-3 text-xs" />
+              })}
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-2 pt-1 text-xs text-slate-500 dark:text-slate-400">
-        <div>
-          Страница {table.getState().pagination.pageIndex + 1} от{" "}
-          {table.getPageCount() || 1}
+      {/* Pagination & Page Size Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-1 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            Страница <span className="font-semibold text-slate-900 dark:text-slate-100">{table.getState().pagination.pageIndex + 1}</span> от{" "}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{table.getPageCount() || 1}</span>
+          </div>
+
+          {/* Items Per Page Selector */}
+          <div className="flex items-center space-x-2">
+            <span>Показвай по:</span>
+            <select
+              value={table.getState().pagination.pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              className="h-8 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm cursor-pointer"
+            >
+              {[10, 20, 30, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size} на страница
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="h-8 text-xs"
+            className="h-8 text-xs font-medium"
           >
             Предишна
           </Button>
@@ -1084,7 +1205,7 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="h-8 text-xs"
+            className="h-8 text-xs font-medium"
           >
             Следваща
           </Button>
