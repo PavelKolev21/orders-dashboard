@@ -480,5 +480,89 @@ export const MOCK_ORDERS: WooCommerceOrder[] = [
         sku: "NEEDLE-30G-100"
       }
     ]
+  },
+  {
+    id: 43751,
+    status: "pending",
+    currency: "EUR",
+    date_created: "2026-08-19T18:51:00",
+    total: "145.00",
+    total_tax: "24.16",
+    payment_method: "bacs",
+    payment_method_title: "Плащане с карта, Apple Pay",
+    tracking_type: "Tag or API",
+    source: "Източник: Google",
+    points: 145,
+    documents: "Поръчка #0000001192",
+    waybill: "—",
+    export_status: "Tag or API",
+    billing: {
+      first_name: "Бетина",
+      last_name: "Христова",
+      email: "hejakt38979@ittiv.com",
+      phone: "+359881112233",
+      city: "София",
+      country: "BG"
+    },
+    shipping: {
+      first_name: "Бетина",
+      last_name: "Христова",
+      city: "София",
+      country: "BG"
+    },
+    line_items: [
+      {
+        id: 213,
+        name: "Стоматологичен комплексен сет",
+        product_id: 9940,
+        quantity: 1,
+        price: 145.00,
+        subtotal: "145.00",
+        total: "145.00",
+        sku: "DENT-SET-145"
+      }
+    ]
+  },
+  {
+    id: 43753,
+    status: "on-hold",
+    currency: "EUR",
+    date_created: "2026-08-19T19:30:00",
+    total: "82.50",
+    total_tax: "13.75",
+    payment_method: "cod",
+    payment_method_title: "Наложен платеж",
+    tracking_type: "Tag or API",
+    source: "Препоръка: Bing.com",
+    points: 83,
+    documents: "Поръчка #0000001193",
+    waybill: "—",
+    export_status: "Tag or API",
+    billing: {
+      first_name: "Бетина",
+      last_name: "Христова",
+      email: "dr.betinahristova.bsmile@gmail.com",
+      phone: "+359882223344",
+      city: "Варна",
+      country: "BG"
+    },
+    shipping: {
+      first_name: "Бетина",
+      last_name: "Христова",
+      city: "Варна",
+      country: "BG"
+    },
+    line_items: [
+      {
+        id: 214,
+        name: "Медицински предпазни консумативи",
+        product_id: 8812,
+        quantity: 1,
+        price: 82.50,
+        subtotal: "82.50",
+        total: "82.50",
+        sku: "MED-PROT-82"
+      }
+    ]
   }
 ]

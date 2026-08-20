@@ -1,4 +1,4 @@
-import { Euro, ShoppingBag, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { Euro, ShoppingBag, TrendingUp, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
 
@@ -10,10 +10,14 @@ interface KpiCardsProps {
     revenueChange?: number
     ordersChange?: number
     aovChange?: number
+    pendingRevenue?: number
+    pendingOrdersCount?: number
+    pendingAOV?: number
   }
+  showPending?: boolean
 }
 
-export function KpiCards({ kpis }: KpiCardsProps) {
+export function KpiCards({ kpis, showPending = true }: KpiCardsProps) {
   const formatChange = (val?: number) => {
     if (val === undefined || isNaN(val)) return { change: "0.0%", isPositive: true }
     const isPositive = val >= 0
@@ -25,11 +29,16 @@ export function KpiCards({ kpis }: KpiCardsProps) {
   const ordChange = formatChange(kpis.ordersChange)
   const aovChange = formatChange(kpis.aovChange)
 
+  const pendingRev = kpis.pendingRevenue || 0
+  const pendingCount = kpis.pendingOrdersCount || 0
+  const pendingAov = kpis.pendingAOV || 0
+
   const cards = [
     {
       title: "Общо приходи (Total Revenue)",
       value: formatCurrency(kpis.totalRevenue),
-      subtitle: "Оборот от поръчки в €",
+      subtitle: "Обработени & приключени поръчки",
+      pendingSubtext: `+ ${formatCurrency(pendingRev)} в очакване (${pendingCount} ${pendingCount === 1 ? "поръчка" : "поръчки"})`,
       change: revChange.change,
       isPositive: revChange.isPositive,
       icon: Euro,
@@ -39,7 +48,8 @@ export function KpiCards({ kpis }: KpiCardsProps) {
     {
       title: "Брой поръчки (Total Orders)",
       value: kpis.totalOrders.toLocaleString(),
-      subtitle: "Обработени & приключени",
+      subtitle: "Обработени & приключени поръчки",
+      pendingSubtext: `+ ${pendingCount} ${pendingCount === 1 ? "поръчка" : "поръчки"} в очакване`,
       change: ordChange.change,
       isPositive: ordChange.isPositive,
       icon: ShoppingBag,
@@ -50,6 +60,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       title: "Средна стойност (AOV)",
       value: formatCurrency(kpis.averageOrderValue),
       subtitle: "Средна поръчка на клиент",
+      pendingSubtext: `В очакване средна: ${formatCurrency(pendingAov)}`,
       change: aovChange.change,
       isPositive: aovChange.isPositive,
       icon: TrendingUp,
@@ -65,44 +76,55 @@ export function KpiCards({ kpis }: KpiCardsProps) {
         return (
           <Card
             key={idx}
-            className="relative overflow-hidden bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 shadow-md dark:shadow-xl"
+            className="relative overflow-hidden bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 shadow-md dark:shadow-xl flex flex-col justify-between"
           >
             <div
               className={`absolute inset-0 bg-gradient-to-br ${card.gradient} pointer-events-none opacity-60`}
             />
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {card.title}
-                </span>
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl border ${card.iconBg} shadow-inner`}
-                >
-                  <Icon className="h-5 w-5" />
+            <CardContent className="p-6 flex flex-col flex-1 justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {card.title}
+                  </span>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl border ${card.iconBg} shadow-inner`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
                 </div>
+
+                <div className="mt-4 flex items-baseline justify-between">
+                  <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    {card.value}
+                  </div>
+                  <div
+                    className={`flex items-center text-xs font-semibold ${
+                      card.isPositive
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }`}
+                  >
+                    {card.isPositive ? (
+                      <ArrowUpRight className="mr-0.5 h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDownRight className="mr-0.5 h-3.5 w-3.5" />
+                    )}
+                    {card.change}
+                  </div>
+                </div>
+
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.subtitle}</p>
               </div>
 
-              <div className="mt-4 flex items-baseline justify-between">
-                <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  {card.value}
+              {showPending && (
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/60">
+                  <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    <span>{card.pendingSubtext}</span>
+                  </div>
                 </div>
-                <div
-                  className={`flex items-center text-xs font-semibold ${
-                    card.isPositive
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-rose-600 dark:text-rose-400"
-                  }`}
-                >
-                  {card.isPositive ? (
-                    <ArrowUpRight className="mr-0.5 h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDownRight className="mr-0.5 h-3.5 w-3.5" />
-                  )}
-                  {card.change}
-                </div>
-              </div>
-
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.subtitle}</p>
+              )}
             </CardContent>
           </Card>
         )

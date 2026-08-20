@@ -30,6 +30,9 @@ export default function DashboardPage() {
     return getPresetDateRange("this_month")
   }, [])
 
+  // Toggle state to display pending orders in KPI cards
+  const [showPending, setShowPending] = React.useState<boolean>(true)
+
   // Date Range Filtering state (Default: "this_month")
   const [datePreset, setDatePreset] = React.useState<DateRangePreset>("this_month")
   const [startDate, setStartDate] = React.useState<string>(initialMonthDates.start)
@@ -289,18 +292,47 @@ export default function DashboardPage() {
 
             {/* Top-Level Analytics: KPI Cards with Dynamic Comparisons */}
             <section className="relative z-10 space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Основни метрики (Key Performance Indicators)
-              </h2>
-              <KpiCards kpis={filteredMetrics.kpis} />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Основни метрики (Key Performance Indicators)
+                </h2>
+
+                {/* Interactive Toggle for Pending Orders */}
+                <label className="inline-flex items-center cursor-pointer gap-2.5 select-none rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Показвай поръчки "В очакване"
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showPending}
+                    onClick={() => setShowPending(!showPending)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      showPending ? "bg-amber-500" : "bg-slate-300 dark:bg-slate-700"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        showPending ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+
+              <KpiCards kpis={filteredMetrics.kpis} showPending={showPending} />
             </section>
 
-            {/* Daily Revenue Trends Chart */}
+            {/* Daily & Monthly Revenue Trends Chart */}
             <section className="space-y-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Дневни приходи и продажби (Revenue Performance)
+                График на приходите и продажбите (Revenue Performance)
               </h2>
-              <RevenueChart data={filteredMetrics.revenueTrends} theme={theme} />
+              <RevenueChart
+                data={filteredMetrics.revenueTrends}
+                monthlyData={filteredMetrics.monthlyRevenueTrends}
+                theme={theme}
+              />
             </section>
 
             {/* Interactive TanStack Orders Data Table Grid */}

@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,32 +22,70 @@ interface RevenueTrend {
 
 interface RevenueChartProps {
   data: RevenueTrend[]
+  monthlyData?: RevenueTrend[]
   theme?: "dark" | "light"
 }
 
-export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
+export function RevenueChart({ data, monthlyData = [], theme = "dark" }: RevenueChartProps) {
+  const [viewMode, setViewMode] = React.useState<"standard" | "monthly">("standard")
+
   const isDark = theme === "dark"
   const gridColor = isDark ? "#1e293b" : "#e2e8f0"
   const textColor = isDark ? "#64748b" : "#64748b"
 
-  // Detect if chart data represents hourly breakdown (e.g. "00:00", "01:00", etc.)
+  // Detect if standard chart data represents hourly breakdown (e.g. "00:00", "01:00", etc.)
   const isHourly = data.length > 0 && data[0].formattedDate.includes(":")
+
+  const activeData = viewMode === "monthly" && monthlyData.length > 0 ? monthlyData : data
 
   return (
     <Card className="bg-white/80 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800/90 shadow-md dark:shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div>
           <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            {isHourly ? "Часови график на продажбите (Hourly Revenue Trends)" : "Дневен график на продажбите (Daily Revenue Trends)"}
+            {viewMode === "monthly"
+              ? "Месечен график на приходите (Monthly Revenue Trends)"
+              : isHourly
+              ? "Часови график на продажбите (Hourly Revenue Trends)"
+              : "Дневен график на продажбите (Daily Revenue Trends)"}
           </CardTitle>
           <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
-            {isHourly
+            {viewMode === "monthly"
+              ? "Обобщение на приходите и поръчките по месеци"
+              : isHourly
               ? "Разпределение по часове (00:00 - 23:00) за избрания ден"
               : "Дневен преглед на приходите от WooCommerce поръчки"}
           </CardDescription>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+
+        <div className="flex items-center space-x-3">
+          {/* Interactive Mode Toggle: Daily / Hourly vs Monthly */}
+          <div className="flex items-center rounded-lg bg-slate-100 dark:bg-slate-800/80 p-0.5 border border-slate-200 dark:border-slate-700/80">
+            <button
+              type="button"
+              onClick={() => setViewMode("standard")}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                viewMode === "standard"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+              }`}
+            >
+              {isHourly ? "По часове" : "Дневен"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("monthly")}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                viewMode === "monthly"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+              }`}
+            >
+              По месеци
+            </button>
+          </div>
+
+          <span className="hidden sm:inline-flex items-center rounded-full bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
             <span className="mr-1.5 h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse" />
             Live Stream
           </span>
@@ -56,7 +95,7 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
       <CardContent className="pt-4">
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={activeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
@@ -70,7 +109,7 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                interval={isHourly ? 1 : "preserveEnd"}
+                interval={viewMode === "standard" && isHourly ? 1 : "preserveEnd"}
               />
               <YAxis
                 stroke={textColor}
@@ -86,7 +125,11 @@ export function RevenueChart({ data, theme = "dark" }: RevenueChartProps) {
                     return (
                       <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/95 p-3 shadow-xl backdrop-blur-md">
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          {isHourly ? `Час: ${item.formattedDate}` : `Дата: ${item.formattedDate}`}
+                          {viewMode === "monthly"
+                            ? `Месец: ${item.formattedDate}`
+                            : isHourly
+                            ? `Час: ${item.formattedDate}`
+                            : `Дата: ${item.formattedDate}`}
                         </p>
                         <p className="mt-1 text-sm font-bold text-indigo-600 dark:text-indigo-400">
                           {formatCurrency(item.revenue)}

@@ -13,34 +13,53 @@ function getDateKey(dateCreated: any): string {
   return getBulgarianDateString(dateCreated)
 }
 
+export function isPrimaryStatus(status?: string): boolean {
+  if (!status) return false
+  const s = status.toLowerCase().trim()
+  return s === "processing" || s === "completed" || s === "обработка" || s === "приключена"
+}
+
+export function isPendingStatus(status?: string): boolean {
+  if (!status) return false
+  const s = status.toLowerCase().trim()
+  return s === "pending" || s === "on-hold" || s === "в очакване" || s === "на изчакване"
+}
+
 export function computeDashboardMetrics(
   orders: WooCommerceOrder[],
   prevPeriodOrders?: WooCommerceOrder[]
 ) {
-  const validOrders = orders.filter(
-    (o) => o && o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
-  )
+  // Primary KPI metrics: strictly "обработка" (processing) & "приключена" (completed)
+  const primaryOrders = orders.filter((o) => o && isPrimaryStatus(o.status))
 
-  const totalRevenue = validOrders.reduce((sum, order) => {
+  // Pending metrics: "в очакване" (pending / on-hold)
+  const pendingOrders = orders.filter((o) => o && isPendingStatus(o.status))
+
+  const totalRevenue = primaryOrders.reduce((sum, order) => {
     return sum + parseTotal(order.total)
   }, 0)
 
-  const totalOrders = orders.length
-  const averageOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : 0
+  const totalOrders = primaryOrders.length
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+
+  const pendingRevenue = pendingOrders.reduce((sum, order) => {
+    return sum + parseTotal(order.total)
+  }, 0)
+
+  const pendingOrdersCount = pendingOrders.length
+  const pendingAOV = pendingOrdersCount > 0 ? pendingRevenue / pendingOrdersCount : 0
 
   let revenueChange = 0
   let ordersChange = 0
   let aovChange = 0
 
   if (prevPeriodOrders && prevPeriodOrders.length > 0) {
-    const validPrev = prevPeriodOrders.filter(
-      (o) => o && o.status !== "cancelled" && o.status !== "failed" && o.status !== "отказана"
-    )
-    const prevRevenue = validPrev.reduce((sum, order) => {
+    const prevPrimary = prevPeriodOrders.filter((o) => o && isPrimaryStatus(o.status))
+    const prevRevenue = prevPrimary.reduce((sum, order) => {
       return sum + parseTotal(order.total)
     }, 0)
-    const prevOrders = prevPeriodOrders.length
-    const prevAOV = validPrev.length > 0 ? prevRevenue / validPrev.length : 0
+    const prevOrders = prevPrimary.length
+    const prevAOV = prevOrders > 0 ? prevRevenue / prevOrders : 0
 
     if (prevRevenue > 0) {
       revenueChange = ((totalRevenue - prevRevenue) / prevRevenue) * 100
@@ -74,10 +93,10 @@ export function computeDashboardMetrics(
       const hour = getBulgarianHour(order.date_created)
       const amount = parseTotal(order.total)
 
-      if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
+      if (isPrimaryStatus(order.status)) {
         mapHourRevenue[hour].revenue += amount
+        mapHourRevenue[hour].orders += 1
       }
-      mapHourRevenue[hour].orders += 1
     })
 
     revenueTrends = Object.entries(mapHourRevenue).map(([hStr, data]) => {
@@ -100,10 +119,10 @@ export function computeDashboardMetrics(
       if (!mapDateRevenue[dateKey]) {
         mapDateRevenue[dateKey] = { revenue: 0, orders: 0 }
       }
-      if (order.status !== "cancelled" && order.status !== "failed" && order.status !== "отказана") {
+      if (isPrimaryStatus(order.status)) {
         mapDateRevenue[dateKey].revenue += amount
+        mapDateRevenue[dateKey].orders += 1
       }
-      mapDateRevenue[dateKey].orders += 1
     })
 
     // Fill in any missing dates in the range between min and max date
@@ -144,6 +163,45 @@ export function computeDashboardMetrics(
     })
   }
 
+  // Monthly Revenue Trends aggregation
+  const mapMonthRevenue: Record<string, { revenue: number; orders: number }> = {}
+
+  sortedOrders.forEach((order) => {
+    const dateKey = getDateKey(order.date_created)
+    if (!dateKey || dateKey.length < 7) return
+    const monthKey = dateKey.substring(0, 7) // "YYYY-MM"
+    const amount = parseTotal(order.total)
+
+    if (!mapMonthRevenue[monthKey]) {
+      mapMonthRevenue[monthKey] = { revenue: 0, orders: 0 }
+    }
+
+    if (isPrimaryStatus(order.status)) {
+      mapMonthRevenue[monthKey].revenue += amount
+      mapMonthRevenue[monthKey].orders += 1
+    }
+  })
+
+  const BG_MONTHS: Record<string, string> = {
+    "01": "Ян", "02": "Фев", "03": "Мар", "04": "Апр",
+    "05": "Май", "06": "Юни", "07": "Юли", "08": "Авг",
+    "09": "Сеп", "10": "Окт", "11": "Ное", "12": "Дек"
+  }
+
+  const monthlyRevenueTrends = Object.entries(mapMonthRevenue)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([monthKey, data]) => {
+      const [y, m] = monthKey.split("-")
+      const monthName = BG_MONTHS[m] || m
+      const formattedDate = `${monthName} ${y}`
+      return {
+        date: monthKey,
+        formattedDate,
+        revenue: parseFloat(data.revenue.toFixed(2)),
+        orders: data.orders,
+      }
+    })
+
   return {
     kpis: {
       totalRevenue: parseFloat(totalRevenue.toFixed(2)),
@@ -152,8 +210,12 @@ export function computeDashboardMetrics(
       revenueChange: parseFloat(revenueChange.toFixed(1)),
       ordersChange: parseFloat(ordersChange.toFixed(1)),
       aovChange: parseFloat(aovChange.toFixed(1)),
+      pendingRevenue: parseFloat(pendingRevenue.toFixed(2)),
+      pendingOrdersCount,
+      pendingAOV: parseFloat(pendingAOV.toFixed(2)),
     },
     revenueTrends,
+    monthlyRevenueTrends,
   }
 }
 

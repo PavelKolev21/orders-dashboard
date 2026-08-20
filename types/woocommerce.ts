@@ -96,8 +96,17 @@ export interface OrdersApiResponse {
     revenueChange?: number;
     ordersChange?: number;
     aovChange?: number;
+    pendingRevenue?: number;
+    pendingOrdersCount?: number;
+    pendingAOV?: number;
   };
   revenueTrends: {
+    date: string;
+    formattedDate: string;
+    revenue: number;
+    orders: number;
+  }[];
+  monthlyRevenueTrends?: {
     date: string;
     formattedDate: string;
     revenue: number;
