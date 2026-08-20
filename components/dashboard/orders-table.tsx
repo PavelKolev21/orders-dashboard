@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 
 import { WooCommerceOrder } from "@/types/woocommerce"
+import { getOrderTotalDiscount } from "@/lib/woocommerce"
 import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -926,8 +927,7 @@ export function OrdersTable({ data, onRefresh, isRefreshing }: OrdersTableProps)
       return sum + (isNaN(val) ? 0 : val)
     }, 0)
     const totalDiscounts = activeRows.reduce((sum, row) => {
-      const val = parseFloat(String(row.original.discount_total || 0).replace(",", "."))
-      return sum + (isNaN(val) ? 0 : val)
+      return sum + getOrderTotalDiscount(row.original)
     }, 0)
     const averageValue = count > 0 ? totalAmount / count : 0
 

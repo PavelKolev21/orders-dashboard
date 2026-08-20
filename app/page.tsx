@@ -67,16 +67,15 @@ export default function DashboardPage() {
     try {
       let url = "/api/orders"
       const params = new URLSearchParams()
+      params.append("_t", String(Date.now()))
       if (start || end) {
         const { after, before } = getBulgarianDateRangeIso(start, end)
         if (after) params.append("after", after)
         if (before) params.append("before", before)
       }
-      if (params.toString()) {
-        url += `?${params.toString()}`
-      }
+      url += `?${params.toString()}`
 
-      const res = await fetch(url, { cache: "no-store" })
+      const res = await fetch(url, { cache: "no-store", headers: { Pragma: "no-cache" } })
       if (!res.ok) {
         throw new Error(`HTTP error! Status: ${res.status}`)
       }
@@ -84,7 +83,7 @@ export default function DashboardPage() {
       if (!json.success) {
         throw new Error(json.error || "Failed to load orders")
       }
-      setData(json)
+      setData({ ...json, data: [...(json.data || [])] })
     } catch (err) {
       console.error("Dashboard fetch error:", err)
       setError(err instanceof Error ? err.message : "Failed to load orders data")

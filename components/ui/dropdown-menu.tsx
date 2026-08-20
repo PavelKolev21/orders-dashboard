@@ -70,7 +70,7 @@ export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: D
 
   return (
     <DropdownContext.Provider value={{ open, setOpen }}>
-      <div ref={menuRef} className="relative z-50 inline-block text-left w-full">
+      <div ref={menuRef} className="relative z-50 inline-block text-left">
         {children}
       </div>
     </DropdownContext.Provider>

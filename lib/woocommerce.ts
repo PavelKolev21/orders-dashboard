@@ -25,6 +25,30 @@ export function isPendingStatus(status?: string): boolean {
   return s === "pending" || s === "on-hold" || s === "в очакване" || s === "на изчакване"
 }
 
+export function getOrderTotalDiscount(order: WooCommerceOrder): number {
+  if (!order) return 0
+  const lineItems = order.line_items || []
+  const itemDiscounts = lineItems.reduce((sum, item) => {
+    const qty = item.quantity || 1
+    const regP = item.regular_price ? parseFloat(String(item.regular_price)) : 0
+    const saleP = item.sale_price ? parseFloat(String(item.sale_price)) : 0
+    const sub = parseFloat(item.subtotal) || 0
+    const tot = parseFloat(item.total) || 0
+    const itemDiscount = Math.max(0, sub - tot)
+
+    if (regP > 0 && saleP > 0 && regP > saleP) {
+      return sum + (regP - saleP) * qty
+    } else if (itemDiscount > 0) {
+      return sum + itemDiscount
+    }
+    return sum
+  }, 0)
+
+  const orderCouponDiscount = parseFloat(String(order.discount_total || 0).replace(",", ".")) || 0
+
+  return itemDiscounts + orderCouponDiscount
+}
+
 export function computeDashboardMetrics(
   orders: WooCommerceOrder[],
   prevPeriodOrders?: WooCommerceOrder[]
